@@ -40,19 +40,19 @@ def gerarCubos(nx,ny,nz):
                 spoints[i][2] = z
                 i += 1
 
-    for e in range(dx*dy*dz):
+    for e in range(nx*ny*nz):
         x=spoints[e][0]
         y=spoints[e][1]
         z=spoints[e][2]
         cubelist[e][0] = 8
-        cubelist[e][1] =(z+y*(dz+1)+x*(dz+1)*(dy+1))
-        cubelist[e][2] = (z+y*(dz+1)+(x+1)*(dz+1)*(dy+1))
-        cubelist[e][3] = ((z+1)+y*(dz+1)+(x+1)*(dz+1)*(dy+1))
-        cubelist[e][4] =  ((z+1)+y*(dz+1)+x*(dz+1)*(dy+1))
-        cubelist[e][5] = (z+(y+1)*(dz+1)+x*(dz+1)*(dy+1))
-        cubelist[e][6] = (z+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1))
-        cubelist[e][7] =((z+1)+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1))
-        cubelist[e][8] = ((z+1)+(y+1)*(dz+1)+x*(dz+1)*(dy+1))
+        cubelist[e][1] =(z+y*(nz+1)+x*(nz+1)*(ny+1))
+        cubelist[e][2] = (z+y*(nz+1)+(x+1)*(nz+1)*(ny+1))
+        cubelist[e][3] = ((z+1)+y*(nz+1)+(x+1)*(nz+1)*(ny+1))
+        cubelist[e][4] =  ((z+1)+y*(nz+1)+x*(nz+1)*(ny+1))
+        cubelist[e][5] = (z+(y+1)*(nz+1)+x*(nz+1)*(ny+1))
+        cubelist[e][6] = (z+(y+1)*(nz+1)+(x+1)*(nz+1)*(ny+1))
+        cubelist[e][7] =((z+1)+(y+1)*(nz+1)+(x+1)*(nz+1)*(ny+1))
+        cubelist[e][8] = ((z+1)+(y+1)*(nz+1)+x*(nz+1)*(ny+1))
     return cubelist
 
 
