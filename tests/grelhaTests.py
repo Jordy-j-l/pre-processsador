@@ -78,6 +78,7 @@ print(divCubesInTetraedros(dx,dy,dz))
 points = gerarPoints(dx,dy,dz)
 
 
+
 """
 cube = np.array([
     [8, (z+y*(dz+1)+x*(dz+1)*(dy+1)), (z+y*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+y*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+y*(dz+1)+x*(dz+1)*(dy+1)),(z+(y+1)*(dz+1)+x*(dz+1)*(dy+1)), (z+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+(y+1)*(dz+1)+x*(dz+1)*(dy+1))],
@@ -87,6 +88,9 @@ cube = np.array([
 
 cube = gerarCubos(dx,dy,dz)
 
+
+
+
 type = np.array([CellType.HEXAHEDRON]*len(cube))
 
 tetraedro =divCubesInTetraedros(dx,dy,dz)
@@ -95,7 +99,7 @@ typet = np.array([CellType.TETRA]*len(tetraedro))
 pl=pv.Plotter()
 cloud=pv.PolyData(points)
 pl.add_mesh(cloud,color="red",opacity=0)
-grid = pv.UnstructuredGrid(cube, type, points)
+grid = pv.UnstructuredGrid(cube.ravel(), type, points)
 pl.add_mesh(grid,color="blue",opacity=0,show_edges=True)
 gridt=pv.UnstructuredGrid(tetraedro, typet, points)
 pl.add_mesh(gridt,color="green",opacity=0.5,show_edges=True)
