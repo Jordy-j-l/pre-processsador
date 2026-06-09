@@ -3,6 +3,7 @@ import pyvista as pv
 from numpy.ma.core import append
 from pyvista import CellType
 
+
 dx=2
 dy=2
 dz=2
@@ -96,10 +97,16 @@ type = np.array([CellType.HEXAHEDRON]*len(cube))
 tetraedro =divCubesInTetraedros(dx,dy,dz)
 typet = np.array([CellType.TETRA]*len(tetraedro))
 
+
+
+
+
 pl=pv.Plotter()
 cloud=pv.PolyData(points)
 pl.add_mesh(cloud,color="red",opacity=0)
+
 grid = pv.UnstructuredGrid(cube.ravel(), type, points)
+
 pl.add_mesh(grid,color="blue",opacity=0,show_edges=True)
 gridt=pv.UnstructuredGrid(tetraedro, typet, points)
 pl.add_mesh(gridt,color="green",opacity=0.5,show_edges=True)
