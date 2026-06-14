@@ -7,6 +7,7 @@ from pyvista import CellType
 dx=2
 dy=2
 dz=1
+front="x"
 
 def gerarPoints(nx,ny,nz):
     points = np.empty(((nx+1)*(ny+1)*(nz+1),3))
@@ -59,9 +60,9 @@ def gerarCubos(nx,ny,nz):
 
 def divCubesInTetraedros(nx,ny,nz,cubo):
     c=0
-    print(cubo.shape)
+    #print(cubo.shape)
     tetraedro=np.empty(((len(cubo)*5),5),dtype=int)
-    print(tetraedro.shape)
+    #print(tetraedro.shape)
     for i in range(len(cubo)):
         tetraedro[c] = [4, cubo[i, 1], cubo[i, 2], cubo[i, 4], cubo[i, 5]]
         tetraedro[c+1] = [4, cubo[i, 2], cubo[i, 3], cubo[i, 4], cubo[i, 7]]
@@ -85,60 +86,60 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
         if front == "x":
             if pontos[i][0] == dx:
                 fronts += 1
-                print("ponto de fronteira superior")
+                #print("ponto de fronteira superior")
             elif pontos[i][0] == 0:
                 frontI+=1
-                print("ponto de fronteira inferior")
+                #print("ponto de fronteira inferior")
             elif (pontos[i][0] != dx and pontos[i][0] != 0) and ((pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
                 frontLat+=1
-                print("ponto de fronteira lateral")
+                #print("ponto de fronteira lateral")
             elif pontos[i][0]!=dx and pontos[i][1]!=dy and pontos[i][2]!=dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 frontLivre+=1
-                print("pontos livres")
+                #print("pontos livres")
         elif front=="y":
             if (pontos[i][1] != dy and pontos[i][1] != 0) and ((pontos[i][0] == dx or pontos[i][0] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
                 frontLat += 1
-                print("ponto de fronteira lateral")
+                #print("ponto de fronteira lateral")
             elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 frontLivre += 1
-                print("pontos livres")
+                #print("pontos livres")
             elif pontos[i][1] == dy:
                 fronts += 1
-                print("ponto de fronteira superior")
+                #print("ponto de fronteira superior")
             elif pontos[i][1] == 0:
                 frontI += 1
-                print("ponto de fronteira inferior")
+                #print("ponto de fronteira inferior")
 
         elif front=="z":
             if pontos[i][2]==dz:
                 fronts += 1
-                print("ponto de fronteira superior")
+                #print("ponto de fronteira superior")
             elif pontos[i][2] == 0:
                 frontI += 1
-                print("ponto de fronteira inferior")
+                #print("ponto de fronteira inferior")
             elif (pontos[i][2] != dz and pontos[i][2] != 0) and (
                     (pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
                 frontLat += 1
-                print("ponto de fronteira lateral")
+                #print("ponto de fronteira lateral")
             elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
                 1] != 0 and pontos[i][2] != 0:
                 frontLivre += 1
-                print("pontos livres")
+                #print("pontos livres")
 
 
 
     vetorFinal=np.array([frontLivre+frontLat,fronts,frontI])
     mapa = np.empty(len(pontos), dtype=int)
     novoid=0
-    print("Pontos =================")
-    print(frontLivre, frontLat, fronts, frontI)
-    print("Vetor", vetorFinal)
-    print("========================")
-    print(vetorFinal)
-    print(len(pontos))
+    #print("Pontos =================")
+    #print(frontLivre, frontLat, fronts, frontI)
+    #print("Vetor", vetorFinal)
+    #print("========================")
+    #print(vetorFinal)
+    #print(len(pontos))
     #Livre
     for i in range(len(pontos)):
-        print(novoid)
+    #    print(novoid)
         if front == "x":
             if pontos[i][0]!=dx and pontos[i][1]!=dy and pontos[i][2]!=dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 newpoints[novoid] = pontos[i]
@@ -157,7 +158,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                 novoid += 1
 #Fronteira Lateral
     for i in range(len(pontos)):
-        print(novoid)
+     #   print(novoid)
         if front == "x":
             if (pontos[i][0] != dx and pontos[i][0] != 0) and ((pontos[i][2] == dz or pontos[i][2] == 0) or (pontos[i][1] == dy or pontos[i][1] == 0)):
                  newpoints[novoid] = pontos[i]
@@ -176,7 +177,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
 
                 #Fronteira Superior
     for i in range(len(pontos)):
-        print(novoid)
+      #  print(novoid)
         if front == "x":
             if pontos[i][0] == dx:
                 newpoints[novoid] = pontos[i]
@@ -194,7 +195,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                 novoid += 1
                 #Fronteira Inferior
     for i in range(len(pontos)):
-        print(novoid)
+       # print(novoid)
         if front == "x":
             if pontos[i][0] == 0:
                 newpoints[novoid] = pontos[i]
@@ -357,7 +358,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     frontLivre -= 1
                     novoid += 1
                     """
-    print("MAPA:", mapa)
+    #print("MAPA:", mapa)
     newcube=reordenarCubos(cubos,mapa)
     return vetorFinal,newcube,newpoints
 
@@ -407,7 +408,7 @@ cube = np.array([
 
 
 cube = gerarCubos(dx,dy,dz)
-front="y"
+
 
 vetorfinal,cuboFinal,PontosFinal=reorganizar(points,dx,dy,dz,front,cube)
 
@@ -419,16 +420,22 @@ typet = np.array([CellType.TETRA]*len(tetraedro))
 
 
 
-print("cubo final",cuboFinal)
+#print("cubo final",cuboFinal)
 
-
+#SHOW IN ECRÂ
+cores_rgb = np.zeros((len(tetraedro), 3), dtype=np.uint8)
+for i in range(len(tetraedro)):
+    cores_rgb[i, 0] = np.random.randint(0, 256)
+    cores_rgb[i, 1] =np.random.randint(0, 256)
+    cores_rgb[i, 2] = np.random.randint(0, 256)
 pl=pv.Plotter()
 
 grid = pv.UnstructuredGrid(cuboFinal.ravel(), type, PontosFinal)
 
 pl.add_mesh(grid,color="blue",opacity=0,show_edges=True)
 gridt=pv.UnstructuredGrid(tetraedro, typet, PontosFinal)
-pl.add_mesh(gridt,color="green",opacity=0.5,show_edges=True)
+gridt.cell_data["cores_rgb"]=cores_rgb
+pl.add_mesh(gridt, scalars="cores_rgb",rgb=True,show_edges=True, opacity=0.1)
 pl.show()
 
 
@@ -448,9 +455,9 @@ for i in range(len(tetraedro)):
     exporttetra[i, 2] = tetraedro[i][3]
     exporttetra[i, 3] = tetraedro[i][4]
     exporttetra[i, 4] = p
-print("vetor final \n",vetorfinal)
-print(exportp)
-
+#print("vetor final \n",vetorfinal)
+#print(exportp)
+print(tetraedro)
 np.savetxt("pontos.txt", exportp, fmt="%.6f")
-np.savetxt("elementos.txt", tetraedro, fmt="%d")
-np.savetxt("Vetor.txt", cuboFinal, fmt="%d")
+np.savetxt("elementos.txt", exporttetra, fmt="%d")
+np.savetxt("Vetor.txt", vetorfinal, fmt="%d")
