@@ -1,23 +1,42 @@
 import numpy as np
 import pyvista as pv
-from numpy.ma.core import append
 from pyvista import CellType
 
 
-dx=2
-dy=2
-dz=1
-front="x"
+dx=3 #divizões em x
+dy=4 #divizões em y
+dz=3 #divizões em z
+front="y" #eixo onde situa as placas condensadas
+#espaçamento entre divisões=comprimento total / número de divisões
 
-def gerarPoints(nx,ny,nz):
+lx=dx
+ly=dy
+lz=dz
+
+p=1#arresividade
+if front=="x":
+
+    lx=float(input("Qual a distancia entre as placas?\n-> "))
+elif front == "y":
+    ly = float (input("Qual a distancia entre as placas?\n-> "))
+else:
+    lz = float (input("Qual a distancia entre as placas?\n-> "))
+
+ex=lx/dx
+ey=ly/dy
+ez=lz/dz
+
+
+
+def gerarPoints(nx,ny,nz,expx,expy,expz):
     points = np.empty(((nx+1)*(ny+1)*(nz+1),3))
     i=0
     for x in range(nx+1):
         for y in range(ny+1):
             for z in range(nz+1):
-                points[i][0] = x
-                points[i][1] = y
-                points[i][2] = z
+                points[i][0] = x*expx
+                points[i][1] = y*expy
+                points[i][2] = z*expz
                 i+=1
 
     return points
@@ -25,9 +44,9 @@ def gerarPoints(nx,ny,nz):
 def gerarCubos(nx,ny,nz):
     """
     os pontos iniciais paracriação de qualquer cubo tem de cumprir a seguinte regra
-    x < nx
-    y < ny
-    z < nz
+    x < dx
+    y < dy
+    z < dz
     """
     cubelist=np.empty((nx*ny*nz,9),dtype=int)
 
@@ -58,7 +77,7 @@ def gerarCubos(nx,ny,nz):
     return cubelist
 
 
-def divCubesInTetraedros(nx,ny,nz,cubo):
+def divCubesInTetraedros(cubo):
     c=0
     #print(cubo.shape)
     tetraedro=np.empty(((len(cubo)*5),5),dtype=int)
@@ -71,7 +90,7 @@ def divCubesInTetraedros(nx,ny,nz,cubo):
         tetraedro[c+4] = [4, cubo[i, 4], cubo[i, 5], cubo[i, 7], cubo[i, 8]]
         c+=5
     return tetraedro
-def reorganizar (pontos,dx,dy,dz,front,cubos):
+def reorganizar (pontos,lx,ly,lz,front,cubos):
 
     newpoints=np.empty((pontos.shape),dtype=float)
 
@@ -84,26 +103,26 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
     for i in range(len(pontos)):
 
         if front == "x":
-            if pontos[i][0] == dx:
+            if pontos[i][0] == lx:
                 fronts += 1
                 #print("ponto de fronteira superior")
             elif pontos[i][0] == 0:
                 frontI+=1
                 #print("ponto de fronteira inferior")
-            elif (pontos[i][0] != dx and pontos[i][0] != 0) and ((pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+            elif (pontos[i][0] != lx and pontos[i][0] != 0) and ((pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
                 frontLat+=1
                 #print("ponto de fronteira lateral")
-            elif pontos[i][0]!=dx and pontos[i][1]!=dy and pontos[i][2]!=dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
+            elif pontos[i][0]!=lx and pontos[i][1]!=ly and pontos[i][2]!=lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 frontLivre+=1
                 #print("pontos livres")
         elif front=="y":
-            if (pontos[i][1] != dy and pontos[i][1] != 0) and ((pontos[i][0] == dx or pontos[i][0] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+            if (pontos[i][1] != ly and pontos[i][1] != 0) and ((pontos[i][0] == lx or pontos[i][0] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
                 frontLat += 1
                 #print("ponto de fronteira lateral")
-            elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
+            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 frontLivre += 1
                 #print("pontos livres")
-            elif pontos[i][1] == dy:
+            elif pontos[i][1] == ly:
                 fronts += 1
                 #print("ponto de fronteira superior")
             elif pontos[i][1] == 0:
@@ -111,17 +130,17 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                 #print("ponto de fronteira inferior")
 
         elif front=="z":
-            if pontos[i][2]==dz:
+            if pontos[i][2]==lz:
                 fronts += 1
                 #print("ponto de fronteira superior")
             elif pontos[i][2] == 0:
                 frontI += 1
                 #print("ponto de fronteira inferior")
-            elif (pontos[i][2] != dz and pontos[i][2] != 0) and (
-                    (pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
+            elif (pontos[i][2] != lz and pontos[i][2] != 0) and (
+                    (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
                 frontLat += 1
                 #print("ponto de fronteira lateral")
-            elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
                 1] != 0 and pontos[i][2] != 0:
                 frontLivre += 1
                 #print("pontos livres")
@@ -141,17 +160,17 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
     for i in range(len(pontos)):
     #    print(novoid)
         if front == "x":
-            if pontos[i][0]!=dx and pontos[i][1]!=dy and pontos[i][2]!=dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
+            if pontos[i][0]!=lx and pontos[i][1]!=ly and pontos[i][2]!=lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
         if front == "y":
-            if pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
+            if pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
         if front == "z":
-            if pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+            if pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
                 1] != 0 and pontos[i][2] != 0:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
@@ -160,17 +179,17 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
     for i in range(len(pontos)):
      #   print(novoid)
         if front == "x":
-            if (pontos[i][0] != dx and pontos[i][0] != 0) and ((pontos[i][2] == dz or pontos[i][2] == 0) or (pontos[i][1] == dy or pontos[i][1] == 0)):
+            if (pontos[i][0] != lx and pontos[i][0] != 0) and ((pontos[i][2] == lz or pontos[i][2] == 0) or (pontos[i][1] == ly or pontos[i][1] == 0)):
                  newpoints[novoid] = pontos[i]
                  mapa[i] = novoid
                  novoid += 1
         if front == "y":
-            if (pontos[i][1] != dy and pontos[i][1] != 0) and ((pontos[i][2] == dz or pontos[i][2] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
+            if (pontos[i][1] != ly and pontos[i][1] != 0) and ((pontos[i][2] == lz or pontos[i][2] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
         if front == "z":
-            if (pontos[i][2] != dz and pontos[i][2] != 0) and ((pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
+            if (pontos[i][2] != lz and pontos[i][2] != 0) and ((pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
                 (newpoints)[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
@@ -179,17 +198,17 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
     for i in range(len(pontos)):
       #  print(novoid)
         if front == "x":
-            if pontos[i][0] == dx:
+            if pontos[i][0] == lx:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
         if front == "y":
-            if pontos[i][1] == dy:
+            if pontos[i][1] == ly:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
         if front == "z":
-            if pontos[i][2] == dz:
+            if pontos[i][2] == lz:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
@@ -216,16 +235,16 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
 
     """
     if front == "x":
-        if pontos[i][0] == dx:
+        if pontos[i][0] == lx:
         elif pontos[i][0] == 0:
-        elif (pontos[i][0] != dx and pontos[i][0] != 0) and (
-                (pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+        elif (pontos[i][0] != lx and pontos[i][0] != 0) and (
+                (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
             
-        elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+        elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
             1] != 0 and pontos[i][2] != 0:
                
     elif front == "y":
-        if pontos[i][1] == dy:
+        if pontos[i][1] == ly:
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 fronts -= 1
@@ -234,20 +253,20 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
-        elif (pontos[i][1] != dy and pontos[i][1] != 0) and (
-                (pontos[i][0] == dx or pontos[i][0] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+        elif (pontos[i][1] != ly and pontos[i][1] != 0) and (
+                (pontos[i][0] == lx or pontos[i][0] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
            
                 newpoints[novoid] = pontos[i]
 
                 mapa[i] = novoid
                 
                 novoid += 1
-        elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+        elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
             1] != 0 and pontos[i][2] != 0:
             
                 
     elif front == "z":
-        if pontos[i][2] == dz:
+        if pontos[i][2] == lz:
            
                 newpoints[novoid] = pontos[i]
 
@@ -261,13 +280,13 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                 mapa[i] = novoid
                 novoid += 1
                
-        elif (pontos[i][2] != dz and pontos[i][2] != 0) and (
-                (pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
+        elif (pontos[i][2] != lz and pontos[i][2] != 0) and (
+                (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
 
     for i in range(len(pontos)):
         print(novoid)
         if front == "x":
-            if pontos[i][0] == dx:
+            if pontos[i][0] == lx:
               
                    newpoints[novoid]= pontos[i]
 
@@ -282,14 +301,14 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     mapa[i]=novoid
                     frontI -= 1
                     novoid += 1
-            elif (pontos[i][0] != dx and pontos[i][0] != 0) and ((pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+            elif (pontos[i][0] != lx and pontos[i][0] != 0) and ((pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
                 if (frontLivre == 0):
                     newpoints[novoid] = pontos[i]
                     mapa[i]=novoid
 
                     frontLat -= 1
                     novoid += 1
-            elif pontos[i][0]!=dx and pontos[i][1]!=dy and pontos[i][2]!=dz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
+            elif pontos[i][0]!=lx and pontos[i][1]!=ly and pontos[i][2]!=lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
                 if (frontLivre != 0 and fronts != 0 and frontI != 0):
                     newpoints[novoid]= pontos[i]
 
@@ -297,7 +316,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     frontLivre -= 1
                     novoid += 1
         elif front=="y":
-            if pontos[i][1] == dy:
+            if pontos[i][1] == ly:
                 if (frontLivre == 0 and frontLat == 0):
                     newpoints[novoid]= pontos[i]
 
@@ -311,14 +330,14 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     mapa[i]=novoid
                     frontI -= 1
                     novoid += 1
-            elif (pontos[i][1] != dy and pontos[i][1] != 0) and ((pontos[i][0] == dx or pontos[i][0] == 0) or (pontos[i][2] == dz or pontos[i][2] == 0)):
+            elif (pontos[i][1] != ly and pontos[i][1] != 0) and ((pontos[i][0] == lx or pontos[i][0] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
                 if (frontLivre == 0):
                     newpoints[novoid]= pontos[i]
 
                     mapa[i]=novoid
                     frontLat -= 1
                     novoid += 1
-            elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
                 1] != 0 and pontos[i][2] != 0:
                 if (frontLivre != 0 and fronts != 0 and frontI != 0):
                     newpoints[novoid]= pontos[i]
@@ -327,7 +346,7 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     frontLivre -= 1
                     novoid += 1
         elif front=="z":
-            if pontos[i][2]==dz:
+            if pontos[i][2]==lz:
                 if (frontLivre == 0 and frontLat == 0):
                     newpoints[novoid]= pontos[i]
 
@@ -341,15 +360,15 @@ def reorganizar (pontos,dx,dy,dz,front,cubos):
                     mapa[i]=novoid
                     novoid += 1
                     frontI -= 1
-            elif (pontos[i][2] != dz and pontos[i][2] != 0) and (
-                    (pontos[i][1] == dy or pontos[i][1] == 0) or (pontos[i][0] == dx or pontos[i][0] == 0)):
+            elif (pontos[i][2] != lz and pontos[i][2] != 0) and (
+                    (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
                 if (frontLivre == 0):
                     newpoints[novoid]= pontos[i]
 
                     mapa[i]=novoid
                     novoid += 1
                     frontLat -= 1
-            elif pontos[i][0] != dx and pontos[i][1] != dy and pontos[i][2] != dz and pontos[i][0] != 0 and pontos[i][
+            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
                 1] != 0 and pontos[i][2] != 0:
                 if (frontLivre != 0 and fronts !=0 and frontI !=0):
                     newpoints[novoid]= pontos[i]
@@ -396,13 +415,13 @@ def reordenarCubos(cubos,mapa):
 
 
 
-points = gerarPoints(dx,dy,dz)
+points = gerarPoints(dx,dy,dz,ex,ey,ez)#editar
 
 
 
 """
 cube = np.array([
-    [8, (z+y*(dz+1)+x*(dz+1)*(dy+1)), (z+y*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+y*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+y*(dz+1)+x*(dz+1)*(dy+1)),(z+(y+1)*(dz+1)+x*(dz+1)*(dy+1)), (z+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+(y+1)*(dz+1)+(x+1)*(dz+1)*(dy+1)), ((z+1)+(y+1)*(dz+1)+x*(dz+1)*(dy+1))],
+    [8, (z+y*(lz+1)+x*(lz+1)*(ly+1)), (z+y*(lz+1)+(x+1)*(lz+1)*(ly+1)), ((z+1)+y*(lz+1)+(x+1)*(lz+1)*(ly+1)), ((z+1)+y*(lz+1)+x*(lz+1)*(ly+1)),(z+(y+1)*(lz+1)+x*(lz+1)*(ly+1)), (z+(y+1)*(lz+1)+(x+1)*(lz+1)*(ly+1)), ((z+1)+(y+1)*(lz+1)+(x+1)*(lz+1)*(ly+1)), ((z+1)+(y+1)*(lz+1)+x*(lz+1)*(ly+1))],
 ])
 """
 
@@ -410,12 +429,12 @@ cube = np.array([
 cube = gerarCubos(dx,dy,dz)
 
 
-vetorfinal,cuboFinal,PontosFinal=reorganizar(points,dx,dy,dz,front,cube)
+vetorfinal,cuboFinal,PontosFinal=reorganizar(points,lx,ly,lz,front,cube)
 
 type = np.array([CellType.HEXAHEDRON]*len(cuboFinal))
 
 
-tetraedro =divCubesInTetraedros(dx,dy,dz,cuboFinal)
+tetraedro =divCubesInTetraedros(cuboFinal)
 typet = np.array([CellType.TETRA]*len(tetraedro))
 
 
@@ -443,7 +462,7 @@ pl.show()
 
 exportp=np.empty((len(PontosFinal),4))
 exporttetra=np.empty((len(tetraedro),5))
-p=156#arresividade
+
 for i in range(len(PontosFinal)):
     exportp[i][0]=PontosFinal[i][0]
     exportp[i][1]=PontosFinal[i][1]
@@ -455,9 +474,9 @@ for i in range(len(tetraedro)):
     exporttetra[i, 2] = tetraedro[i][3]
     exporttetra[i, 3] = tetraedro[i][4]
     exporttetra[i, 4] = p
-#print("vetor final \n",vetorfinal)
+print("vetor final \n",vetorfinal)
 #print(exportp)
-print(tetraedro)
+#print(tetraedro)
 np.savetxt("pontos.txt", exportp, fmt="%.6f")
 np.savetxt("elementos.txt", exporttetra, fmt="%d")
 np.savetxt("Vetor.txt", vetorfinal, fmt="%d")
