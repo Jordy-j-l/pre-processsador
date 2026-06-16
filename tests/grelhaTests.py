@@ -3,19 +3,18 @@ import pyvista as pv
 from pyvista import CellType
 
 
-dx=3 #divizões em x
-dy=4 #divizões em y
-dz=3 #divizões em z
+dx=4 #divizões em x
+dy=6 #divizões em y
+dz=4 #divizões em z
 front="y" #eixo onde situa as placas condensadas
 #espaçamento entre divisões=comprimento total / número de divisões
 
-lx=dx
+lx=4
 ly=dy
-lz=dz
+lz=4
 
 p=1#arresividade
 if front=="x":
-
     lx=float(input("Qual a distancia entre as placas?\n-> "))
 elif front == "y":
     ly = float (input("Qual a distancia entre as placas?\n-> "))
@@ -89,6 +88,7 @@ def divCubesInTetraedros(cubo):
         tetraedro[c+3] = [4, cubo[i, 2], cubo[i, 5], cubo[i, 6], cubo[i, 7]]
         tetraedro[c+4] = [4, cubo[i, 4], cubo[i, 5], cubo[i, 7], cubo[i, 8]]
         c+=5
+
     return tetraedro
 def reorganizar (pontos,lx,ly,lz,front,cubos):
 
@@ -455,7 +455,7 @@ pl.add_mesh(grid,color="blue",opacity=0,show_edges=True)
 gridt=pv.UnstructuredGrid(tetraedro, typet, PontosFinal)
 gridt.cell_data["cores_rgb"]=cores_rgb
 pl.add_mesh(gridt, scalars="cores_rgb",rgb=True,show_edges=True, opacity=0.1)
-pl.show()
+pl.show(interactive=True)
 
 
 #exportar
