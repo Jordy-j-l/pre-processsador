@@ -20,12 +20,11 @@ class Show:
     @staticmethod
     def tetrahedron(plotter,tetrahedron_elements,points_array,color="green",multi_color=False):
         tetra_type = np.array([CellType.TETRA] * len(tetrahedron_elements))
-
-        if multi_color==False:
-            pl=plotter
+        pl = plotter
+        if multi_color is False:
             grid = pv.UnstructuredGrid(tetrahedron_elements, tetra_type, points_array)
             pl.add_mesh(grid, color=color, opacity=0.8, show_edges=True)
-            return pl
+        return pl
 
 
     @staticmethod

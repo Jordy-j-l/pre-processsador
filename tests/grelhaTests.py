@@ -14,6 +14,8 @@ ly=dy
 lz=4
 
 p=1#arresividade
+
+
 if front=="x":
     lx=float(input("Qual a distancia entre as placas?\n-> "))
 elif front == "y":
@@ -76,7 +78,7 @@ def gerarCubos(nx,ny,nz):
     return cubelist
 
 
-def divCubesInTetraedros(cubo):
+def divCubesInTetraedros(cubo,pontos):
     c=0
     #print(cubo.shape)
     tetraedro=np.empty(((len(cubo)*5),5),dtype=int)
@@ -89,7 +91,26 @@ def divCubesInTetraedros(cubo):
         tetraedro[c+4] = [4, cubo[i, 4], cubo[i, 5], cubo[i, 7], cubo[i, 8]]
         c+=5
 
+    for i in range(len(tetraedro)):
+        ids = tetraedro[i, 1:5]
+
+        p0 = pontos[ids[0]]
+        p1 = pontos[ids[1]]
+        p2 = pontos[ids[2]]
+        p3 = pontos[ids[3]]
+
+        volume = np.linalg.det(np.array([
+            p1 - p0,
+            p2 - p0,
+            p3 - p0
+        ])) / 6
+
+        if volume < 0:
+            tetraedro[i, 3], tetraedro[i, 4] = tetraedro[i, 4], tetraedro[i, 3]
     return tetraedro
+
+
+
 def reorganizar (pontos,lx,ly,lz,front,cubos):
 
     newpoints=np.empty((pontos.shape),dtype=float)
@@ -148,8 +169,9 @@ def reorganizar (pontos,lx,ly,lz,front,cubos):
 
 
     vetorFinal=np.array([frontLivre+frontLat,fronts,frontI])
-    mapa = np.empty(len(pontos), dtype=int)
+    mapa = np.full(len(pontos), -1, dtype=int)
     novoid=0
+
     #print("Pontos =================")
     #print(frontLivre, frontLat, fronts, frontI)
     #print("Vetor", vetorFinal)
@@ -230,155 +252,17 @@ def reorganizar (pontos,lx,ly,lz,front,cubos):
                 newpoints[novoid] = pontos[i]
                 mapa[i] = novoid
                 novoid += 1
-
-
-
-    """
-    if front == "x":
-        if pontos[i][0] == lx:
-        elif pontos[i][0] == 0:
-        elif (pontos[i][0] != lx and pontos[i][0] != 0) and (
-                (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
-            
-        elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
-            1] != 0 and pontos[i][2] != 0:
-               
-    elif front == "y":
-        if pontos[i][1] == ly:
-                newpoints[novoid] = pontos[i]
-                mapa[i] = novoid
-                fronts -= 1
-                novoid += 1
-        elif pontos[i][1] == 0:
-                newpoints[novoid] = pontos[i]
-                mapa[i] = novoid
-                novoid += 1
-        elif (pontos[i][1] != ly and pontos[i][1] != 0) and (
-                (pontos[i][0] == lx or pontos[i][0] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
-           
-                newpoints[novoid] = pontos[i]
-
-                mapa[i] = novoid
-                
-                novoid += 1
-        elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
-            1] != 0 and pontos[i][2] != 0:
-            
-                
-    elif front == "z":
-        if pontos[i][2] == lz:
-           
-                newpoints[novoid] = pontos[i]
-
-                mapa[i] = novoid
-                novoid += 1
-               
-        elif pontos[i][2] == 0:
-           
-                newpoints[novoid] = pontos[i]
-
-                mapa[i] = novoid
-                novoid += 1
-               
-        elif (pontos[i][2] != lz and pontos[i][2] != 0) and (
-                (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
-
-    for i in range(len(pontos)):
-        print(novoid)
-        if front == "x":
-            if pontos[i][0] == lx:
-              
-                   newpoints[novoid]= pontos[i]
-
-
-                   mapa[i]=novoid
-                   fronts-=1
-                   novoid+=1
-            elif pontos[i][0] == 0:
-                if (frontLivre == 0 and frontLat == 0 and fronts==0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontI -= 1
-                    novoid += 1
-            elif (pontos[i][0] != lx and pontos[i][0] != 0) and ((pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
-                if (frontLivre == 0):
-                    newpoints[novoid] = pontos[i]
-                    mapa[i]=novoid
-
-                    frontLat -= 1
-                    novoid += 1
-            elif pontos[i][0]!=lx and pontos[i][1]!=ly and pontos[i][2]!=lz and pontos[i][0] != 0 and pontos[i][1] != 0 and pontos[i][2] != 0:
-                if (frontLivre != 0 and fronts != 0 and frontI != 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontLivre -= 1
-                    novoid += 1
-        elif front=="y":
-            if pontos[i][1] == ly:
-                if (frontLivre == 0 and frontLat == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    fronts -= 1
-                    novoid += 1
-            elif pontos[i][1] == 0:
-                if (frontLivre == 0 and frontLat == 0 and fronts == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontI -= 1
-                    novoid += 1
-            elif (pontos[i][1] != ly and pontos[i][1] != 0) and ((pontos[i][0] == lx or pontos[i][0] == 0) or (pontos[i][2] == lz or pontos[i][2] == 0)):
-                if (frontLivre == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontLat -= 1
-                    novoid += 1
-            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
-                1] != 0 and pontos[i][2] != 0:
-                if (frontLivre != 0 and fronts != 0 and frontI != 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontLivre -= 1
-                    novoid += 1
-        elif front=="z":
-            if pontos[i][2]==lz:
-                if (frontLivre == 0 and frontLat == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    novoid += 1
-                    fronts -= 1
-            elif pontos[i][2] == 0:
-                if (frontLivre == 0 and frontLat == 0 and fronts == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    novoid += 1
-                    frontI -= 1
-            elif (pontos[i][2] != lz and pontos[i][2] != 0) and (
-                    (pontos[i][1] == ly or pontos[i][1] == 0) or (pontos[i][0] == lx or pontos[i][0] == 0)):
-                if (frontLivre == 0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    novoid += 1
-                    frontLat -= 1
-            elif pontos[i][0] != lx and pontos[i][1] != ly and pontos[i][2] != lz and pontos[i][0] != 0 and pontos[i][
-                1] != 0 and pontos[i][2] != 0:
-                if (frontLivre != 0 and fronts !=0 and frontI !=0):
-                    newpoints[novoid]= pontos[i]
-
-                    mapa[i]=novoid
-                    frontLivre -= 1
-                    novoid += 1
-                    """
     #print("MAPA:", mapa)
-    newcube=reordenarCubos(cubos,mapa)
+    newcube = reordenarCubos(cubos, mapa)
+
+    if np.any(mapa == -1):
+        print("ERRO: existem pontos não classificados")
+        print(np.where(mapa == -1))
+    print("novoid:", novoid)
+    print("len pontos:", len(pontos))
+    print("maior indice cubos:", newcube[:, 1:].max())
+    print("menor indice cubos:", newcube[:, 1:].min())
+
     return vetorFinal,newcube,newpoints
 
 
@@ -396,17 +280,6 @@ def reordenarCubos(cubos,mapa):
         newcube[i][6] = mapa[cubos[i][6]]
         newcube[i][7] =mapa[cubos[i][7]]
         newcube[i][8] = mapa[cubos[i][8]]
-        """
-         newcube[i][1] = i if (x, y, z) == newpoints[i] else cubos[i][1]
-        newcube[i][2] = i if (x + 1, y, z) == newpoints[i] else cubos[i][1]
-        newcube[i][3] = i if (x + 1, y, z + 1) == newpoints[i] else cubos[i][1]
-        newcube[i][4] = i if (x, y, z + 1) == newpoints[i] else cubos[i][1]
-        newcube[i][5] = i if (x, y + 1, z) == newpoints[i] else cubos[i][1]
-        newcube[i][6] = i if (x + 1, y + 1, z) == newpoints[i] else cubos[i][1]
-        newcube[i][7] = i if (x + 1, y + 1, z + 1) == newpoints[i] else cubos[i][1]
-        newcube[i][8] = i if (x, y + 1, z + 1) == newpoints[i] else cubos[i][1]
-        """
-
 
     return newcube
 
@@ -434,12 +307,36 @@ vetorfinal,cuboFinal,PontosFinal=reorganizar(points,lx,ly,lz,front,cube)
 type = np.array([CellType.HEXAHEDRON]*len(cuboFinal))
 
 
-tetraedro =divCubesInTetraedros(cuboFinal)
+
+
+
+
+
+tetraedro =divCubesInTetraedros(cuboFinal,PontosFinal)
+
+
+
 typet = np.array([CellType.TETRA]*len(tetraedro))
 
 
 
 #print("cubo final",cuboFinal)
+
+for t in tetraedro:
+    p0 = PontosFinal[t[1]]
+    p1 = PontosFinal[t[2]]
+    p2 = PontosFinal[t[3]]
+    p3 = PontosFinal[t[4]]
+
+    volume = np.linalg.det(np.array([
+        p1 - p0,
+        p2 - p0,
+        p3 - p0
+    ])) / 6
+
+    if volume <= 0:
+        print("Tetraedro invertido:", t, "Volume:", volume)
+
 
 #SHOW IN ECRÂ
 cores_rgb = np.zeros((len(tetraedro), 3), dtype=np.uint8)
