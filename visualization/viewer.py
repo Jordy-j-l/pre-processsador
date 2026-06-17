@@ -3,7 +3,7 @@ import pyvista as pv
 from pyvista import CellType
 
 
-class Show:
+class Viewer:
 
     @staticmethod
     def cubes(plotter,cubes_elements,points_array,color="blue"):
