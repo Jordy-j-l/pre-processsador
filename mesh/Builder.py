@@ -1,7 +1,5 @@
 import numpy as np
 
-
-
 class Malha:
 
     def __init__(self, dx, dy, dz,sx=None,sy=None,sz=None,eixo_placas=None,vara_1=None,vara_2=None):
@@ -35,6 +33,8 @@ class Malha:
         self.cube_list=self.gerarCubos()
         self.points_list=self.gerarPointsOrdenados()
         self.final_cube_list,self.final_points_list=self.reorganizar()
+        self.final_vector=self.gerarVetor()
+
     def gerarPointsOrdenados(self):
 
         #tamanho de cada espaçamento entre as divizoes feita
@@ -181,15 +181,18 @@ class Malha:
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
-            elif self.isFronteiratLateral(i):
+        for i in range(len(pontos)):
+            if self.isFronteiratLateral(i):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
-            elif self.isFronteiraSuperior(i):
+        for i in range(len(pontos)):
+            if self.isFronteiraSuperior(i):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
-            elif self.isFronteiraInferior(i):
+        for i in range(len(pontos)):
+            if self.isFronteiraInferior(i):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
@@ -248,6 +251,28 @@ class Malha:
 
             if volume < 0:
                 tetraedro[i, 3], tetraedro[i, 4] = tetraedro[i, 4], tetraedro[i, 3]
+        volumes = []
+
+        for i in range(len(tetraedro)):
+            ids = tetraedro[i, 1:5]
+
+            p0 = pontos[ids[0]]
+            p1 = pontos[ids[1]]
+            p2 = pontos[ids[2]]
+            p3 = pontos[ids[3]]
+
+            volume = np.linalg.det(np.array([
+                p1 - p0,
+                p2 - p0,
+                p3 - p0
+            ])) / 6
+
+            volumes.append(volume)
+
+        print("min volume:", min(volumes))
+        print("max volume:", max(volumes))
+        print("volumes negativos:", np.sum(np.array(volumes) < 0))
+        print("volumes zero:", np.sum(np.abs(volumes) < 1e-12))
         return tetraedro
 
 #Getters e Setters
@@ -259,5 +284,5 @@ class Malha:
     def getTetraedrosList(self):
         return self.divCubesInTetraedros()
     def getVetorList(self):
-        return self.gerarVetor()
+        return self.final_vector
 

@@ -3,17 +3,17 @@ import pyvista as pv
 from pyvista import CellType
 
 
-dx=4 #divizões em x
-dy=6 #divizões em y
-dz=4 #divizões em z
+dx=2 #divizões em x
+dy=2 #divizões em y
+dz=1 #divizões em z
 front="y" #eixo onde situa as placas condensadas
 #espaçamento entre divisões=comprimento total / número de divisões
 
-lx=4
+lx=dx
 ly=dy
-lz=4
+lz=dz
 
-p=1#arresividade
+p=1#resistividade
 
 
 if front=="x":
@@ -32,6 +32,7 @@ ez=lz/dz
 def gerarPoints(nx,ny,nz,expx,expy,expz):
     points = np.empty(((nx+1)*(ny+1)*(nz+1),3))
     i=0
+
     for x in range(nx+1):
         for y in range(ny+1):
             for z in range(nz+1):
@@ -351,7 +352,7 @@ grid = pv.UnstructuredGrid(cuboFinal.ravel(), type, PontosFinal)
 pl.add_mesh(grid,color="blue",opacity=0,show_edges=True)
 gridt=pv.UnstructuredGrid(tetraedro, typet, PontosFinal)
 gridt.cell_data["cores_rgb"]=cores_rgb
-pl.add_mesh(gridt, scalars="cores_rgb",rgb=True,show_edges=True, opacity=0.1)
+pl.add_mesh(gridt, scalars="cores_rgb",rgb=True,show_edges=True, opacity=0.5)
 pl.show(interactive=True)
 
 
