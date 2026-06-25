@@ -40,6 +40,8 @@ tetratype=np.array([CellType.TETRA])
 tetratypes=np.array([CellType.TETRA]*len(tetraedros))
 pl=pv.Plotter(shape=(2,3))
 
+
+
 pl.subplot(0,0)
 grid1=pv.UnstructuredGrid(tetraedros[0].ravel(),tetratype,pontos)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
@@ -47,17 +49,32 @@ pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
 pl.add_mesh(grid1,color="red",opacity=0.8)
 
 pl.subplot(0,1)
+
 grid2=pv.UnstructuredGrid(tetraedros[1].ravel(),tetratype,pontos)
 pl.add_mesh(grid2,color="blue",opacity=0.7)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
-pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
 
+pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.subplot(0,2)
 grid3=pv.UnstructuredGrid(tetraedros[2].ravel(),tetratype,pontos)
-pl.add_mesh(grid3,color="green",opacity=0.7)
+pl.add_mesh(grid3,color="green",opacity=1)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
 pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
 
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.subplot(1,0)
 grid4=pv.UnstructuredGrid(tetraedros[3].ravel(),tetratype,pontos)
 pl.add_mesh(grid4,color="yellow",opacity=0.7)
@@ -76,5 +93,6 @@ pl.add_mesh(grid2,color="blue",opacity=0.8)
 pl.add_mesh(grid3,color="green",opacity=0.8)
 pl.add_mesh(grid4,color="yellow",opacity=0.8)
 pl.add_mesh(grid5,color="pink",opacity=0.8)
+
 pl.show()
 

@@ -176,7 +176,6 @@ class Malha:
         novoid = 0
 
         for i in range(len(pontos)):
-
             if self.isPontoLivre(i):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
