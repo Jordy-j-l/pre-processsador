@@ -219,7 +219,7 @@ class Malha:
         return newcube, newpoints
 
 
-    def divCubesInTetraedros(self):
+    def divCubesInTetraedros5(self):
         cube_list=self.final_cube_list
         pontos = self.final_points_list
         c = 0
@@ -233,6 +233,63 @@ class Malha:
             tetraedro[c + 3] = [4, cube_list[i, 2], cube_list[i, 5], cube_list[i, 6], cube_list[i, 7]]
             tetraedro[c + 4] = [4, cube_list[i, 4], cube_list[i, 5], cube_list[i, 7], cube_list[i, 8]]
             c += 5
+
+        for i in range(len(tetraedro)):
+            ids = tetraedro[i, 1:5] # indice dos 4 pontos do tetraedro da posiçao I
+
+            p0 = pontos[ids[0]]
+            p1 = pontos[ids[1]]
+            p2 = pontos[ids[2]]
+            p3 = pontos[ids[3]]
+
+            volume = np.linalg.det(np.array([
+                p1 - p0,
+                p2 - p0,
+                p3 - p0
+            ])) / 6
+
+            if volume < 0:
+                tetraedro[i, 3], tetraedro[i, 4] = tetraedro[i, 4], tetraedro[i, 3]
+        volumes = []
+
+        for i in range(len(tetraedro)):
+            ids = tetraedro[i, 1:5]
+
+            p0 = pontos[ids[0]]
+            p1 = pontos[ids[1]]
+            p2 = pontos[ids[2]]
+            p3 = pontos[ids[3]]
+
+            volume = np.linalg.det(np.array([
+                p1 - p0,
+                p2 - p0,
+                p3 - p0
+            ])) / 6
+
+            volumes.append(volume)
+
+        #print("min volume:", min(volumes))
+        #print("max volume:", max(volumes))
+        #print("volumes negativos:", np.sum(np.array(volumes) < 0))
+        #print("volumes zero:", np.sum(np.abs(volumes) < 1e-12))
+        return tetraedro
+
+    #Estou a dividir o cubo em 6
+    def divCubesInTetraedros(self):
+        cube_list=self.final_cube_list
+        pontos = self.final_points_list
+        c = 0
+        # print(cubo.shape)
+        tetraedro = np.empty(((len(cube_list) * 6), 5), dtype=int)
+
+        for i in range(len(cube_list)):
+            tetraedro[c] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 1] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 2] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 3] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 8], cube_list[i, 7]]
+            tetraedro[c + 4] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 5] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 8], cube_list[i, 7]]
+            c += 6
 
         for i in range(len(tetraedro)):
             ids = tetraedro[i, 1:5] # indice dos 4 pontos do tetraedro da posiçao I

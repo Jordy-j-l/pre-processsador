@@ -28,12 +28,26 @@ tetraedros=np.array([
 
 
 tetraedros=np.array([
-    [4,cubo[0,1], cubo[0,2], cubo[0,4], cubo[0,5]],
-    [4,cubo[0,2], cubo[0,3], cubo[0,4], cubo[0,7]],
-    [4,cubo[0,2], cubo[0,4], cubo[0,5], cubo[0,7]],
-    [4,cubo[0,2], cubo[0,5], cubo[0,6], cubo[0,7]],
-    [4,cubo[0,4], cubo[0,5], cubo[0,7], cubo[0,8]],
+    [4,cubo[0,1], cubo[0,2], cubo[0,6], cubo[0,7]],
+    [4,cubo[0,1], cubo[0,2], cubo[0,3], cubo[0,7]],
+    [4,cubo[0,1], cubo[0,5], cubo[0,6], cubo[0,7]],
+    [4,cubo[0,1], cubo[0,5], cubo[0,8], cubo[0,7]],
+    [4,cubo[0,1], cubo[0,4], cubo[0,3], cubo[0,7]],
+    [4,cubo[0,1], cubo[0,4], cubo[0,8], cubo[0,7]]
 ])
+
+"""
+tetraedro = np.empty(((len(cube_list) * 6), 5), dtype=int)
+
+        for i in range(len(cube_list)):
+            tetraedro[c] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 1] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 2] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 3] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 8], cube_list[i, 7]]
+            tetraedro[c + 4] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 5] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 8], cube_list[i, 7]]
+            c += 6
+"""
 print(tetraedros.shape)
 
 tetratype=np.array([CellType.TETRA])
@@ -47,7 +61,13 @@ grid1=pv.UnstructuredGrid(tetraedros[0].ravel(),tetratype,pontos)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
 pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
 pl.add_mesh(grid1,color="red",opacity=0.8)
-
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.subplot(0,1)
 
 grid2=pv.UnstructuredGrid(tetraedros[1].ravel(),tetratype,pontos)
@@ -80,19 +100,36 @@ grid4=pv.UnstructuredGrid(tetraedros[3].ravel(),tetratype,pontos)
 pl.add_mesh(grid4,color="yellow",opacity=0.7)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
 pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
-
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.subplot(1,1)
 grid5=pv.UnstructuredGrid(tetraedros[4].ravel(),tetratype,pontos)
 pl.add_mesh(grid5,color="pink",opacity=0.7)
 cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
 pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
-
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.subplot(1,2)
-pl.add_mesh(grid1,color="red",opacity=0.8)
-pl.add_mesh(grid2,color="blue",opacity=0.8)
-pl.add_mesh(grid3,color="green",opacity=0.8)
-pl.add_mesh(grid4,color="yellow",opacity=0.8)
-pl.add_mesh(grid5,color="pink",opacity=0.8)
-
+grid6=pv.UnstructuredGrid(tetraedros[5].ravel(),tetratype,pontos)
+pl.add_mesh(grid6,color="purple",opacity=0.7)
+cub=pv.UnstructuredGrid(cubo.ravel(),cubtype,pontos)
+pl.add_mesh(cub,color="white",opacity=0.1,show_edges=True)
+pl.add_axes(
+    xlabel="X",
+    ylabel="Y",
+    zlabel="Z",
+    line_width=3,
+    interactive=True
+)
 pl.show()
 

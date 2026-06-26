@@ -3,15 +3,15 @@ import pyvista as pv
 from pyvista import CellType
 
 
-dx=2 #divizões em x
-dy=2 #divizões em y
-dz=1 #divizões em z
-front="y" #eixo onde situa as placas condensadas
+dx=10 #divizões em x
+dy=10 #divizões em y
+dz=6 #divizões em z
+front="z" #eixo onde situa as placas condensadas
 #espaçamento entre divisões=comprimento total / número de divisões
 
-lx=dx
-ly=dy
-lz=dz
+lx=10
+ly=10
+lz=0.1
 
 p=1#resistividade
 
@@ -79,18 +79,19 @@ def gerarCubos(nx,ny,nz):
     return cubelist
 
 
-def divCubesInTetraedros(cubo,pontos):
+def divCubesInTetraedros(cube_list,pontos):
     c=0
-    #print(cubo.shape)
-    tetraedro=np.empty(((len(cubo)*5),5),dtype=int)
-    #print(tetraedro.shape)
-    for i in range(len(cubo)):
-        tetraedro[c] = [4, cubo[i, 1], cubo[i, 2], cubo[i, 4], cubo[i, 5]]
-        tetraedro[c+1] = [4, cubo[i, 2], cubo[i, 3], cubo[i, 4], cubo[i, 7]]
-        tetraedro[c+2] = [4, cubo[i, 2], cubo[i, 4], cubo[i, 5], cubo[i, 7]]
-        tetraedro[c+3] = [4, cubo[i, 2], cubo[i, 5], cubo[i, 6], cubo[i, 7]]
-        tetraedro[c+4] = [4, cubo[i, 4], cubo[i, 5], cubo[i, 7], cubo[i, 8]]
-        c+=5
+
+    tetraedro = np.empty(((len(cube_list) * 6), 5), dtype=int)
+
+    for i in range(len(cube_list)):
+        tetraedro[c] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 6], cube_list[i, 7]]
+        tetraedro[c + 1] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 3], cube_list[i, 7]]
+        tetraedro[c + 2] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 6], cube_list[i, 7]]
+        tetraedro[c + 3] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 8], cube_list[i, 7]]
+        tetraedro[c + 4] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 3], cube_list[i, 7]]
+        tetraedro[c + 5] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 8], cube_list[i, 7]]
+        c += 6
 
     for i in range(len(tetraedro)):
         ids = tetraedro[i, 1:5]
