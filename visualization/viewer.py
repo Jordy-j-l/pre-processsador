@@ -87,12 +87,12 @@ class Viewer:
         return pl
 
     @staticmethod
-    def tetrahedron(plotter,tetrahedron_elements,points_array,color="green",multi_color=False):
+    def tetrahedron(plotter,tetrahedron_elements,points_array,color="green",multi_color=False,opacity=0.7):
         tetra_type = np.array([CellType.TETRA] * len(tetrahedron_elements))
         pl = plotter
         if multi_color is False:
             grid = pv.UnstructuredGrid(tetrahedron_elements, tetra_type, points_array)
-            pl.add_mesh(grid, color=color, opacity=0.8, show_edges=True)
+            pl.add_mesh(grid, color=color, opacity=opacity, show_edges=True)
         return pl
 
 
@@ -104,7 +104,31 @@ class Viewer:
         pl.add_mesh(grid, color=color, opacity=0.8, show_edges=True)
         return pl
 
+    @staticmethod
+    def viewXY(plotter):
+        plotter.view_xy()
+        plotter.enable_parallel_projection()
+        plotter.reset_camera()
+        plotter.render()
 
+    @staticmethod
+    def viewXZ(plotter):
+        plotter.view_xz()
+        plotter.enable_parallel_projection()
+        plotter.reset_camera()
+        plotter.render()
 
+    @staticmethod
+    def viewYZ(plotter):
+        plotter.view_yz()
+        plotter.enable_parallel_projection()
+        plotter.reset_camera()
+        plotter.render()
 
+    @staticmethod
+    def view3D(plotter):
+        plotter.view_isometric()
+        plotter.disable_parallel_projection()
+        plotter.reset_camera()
+        plotter.render()
 

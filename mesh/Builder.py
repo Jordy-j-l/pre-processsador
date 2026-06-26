@@ -210,11 +210,11 @@ class Malha:
 
         if np.any(mapa == -1):
             print("ERRO: existem pontos não classificados")
-            print(np.where(mapa == -1))
-        print("novoid:", novoid)
-        print("len pontos:", len(pontos))
-        print("maior indice cubos:", newcube[:, 1:].max())
-        print("menor indice cubos:", newcube[:, 1:].min())
+            #print(np.where(mapa == -1))
+        #print("novoid:", novoid)
+        #print("len pontos:", len(pontos))
+        #print("maior indice cubos:", newcube[:, 1:].max())
+        #print("menor indice cubos:", newcube[:, 1:].min())
 
         return newcube, newpoints
 
@@ -268,10 +268,10 @@ class Malha:
 
             volumes.append(volume)
 
-        print("min volume:", min(volumes))
-        print("max volume:", max(volumes))
-        print("volumes negativos:", np.sum(np.array(volumes) < 0))
-        print("volumes zero:", np.sum(np.abs(volumes) < 1e-12))
+        #print("min volume:", min(volumes))
+        #print("max volume:", max(volumes))
+        #print("volumes negativos:", np.sum(np.array(volumes) < 0))
+        #print("volumes zero:", np.sum(np.abs(volumes) < 1e-12))
         return tetraedro
 
 #Getters e Setters

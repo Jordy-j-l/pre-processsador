@@ -26,10 +26,10 @@
 
 
 
+
 import sys
-import numpy as np
-import pyvista as pv
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
+from visualization.mainWindow import MainWindow
 
 def menuPrincipal():
     pass
@@ -64,9 +64,7 @@ def VisualizaçãoCall():
     
     """
 
-import sys
-from PySide6.QtWidgets import QApplication
-from visualization.mainWindow import MainWindow
+
 
 
 def main():
