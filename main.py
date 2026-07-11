@@ -65,7 +65,9 @@ def VisualizaçãoCall():
     """
 
 
-
+"""
+classe main com finalidade de chamar a Interface grafica
+"""
 
 def main():
     app = QApplication(sys.argv)

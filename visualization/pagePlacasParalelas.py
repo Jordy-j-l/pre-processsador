@@ -47,7 +47,7 @@ class PagePlacasParalelas(QWidget):
 
 
     def updateMalha(self,sxf,syf,szf):
-        self.malha=Malha( self.dx, self.dy, self.dz, sxf, syf, szf,"z")
+        self.malha=Malha( self.dx, self.dy, self.dz, sxf, syf, szf)
 
 
 
@@ -58,7 +58,7 @@ class PagePlacasParalelas(QWidget):
 
         control_panel = self.createControlPanel()
 
-        self.plotter = QtInteractor(self)
+        self.plotter = QtInteractor()
         self.plotter.add_axes(
             xlabel="X",
             ylabel="Y",

@@ -26,8 +26,8 @@ class MainWindow(QMainWindow):
         )
 
         self.page_placas = PagePlacasParalelas(voltar=self.showMenuPrincipal)
-        self.page_1_vara = Page1Vara()
-        self.page_2_varas = Page2Varas()
+        self.page_1_vara = Page1Vara(voltar=self.showMenuPrincipal)
+        self.page_2_varas = Page2Varas(voltar=self.showMenuPrincipal)
         self.page_malha_view = PageMalhaView()
 
         self.pages.addWidget(self.menu_principal)

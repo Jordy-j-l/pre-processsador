@@ -34,7 +34,7 @@ class PageMalhaView(QWidget):
 
 
     def setMalha(self):
-        self.malha=Malha( self.dx, self.dy, self.dz, self.sx, self.sy, self.sz,"z")
+        self.malha=Malha( self.dx, self.dy, self.dz, self.sx, self.sy, self.sz)
 
     def setup(self):
         main_layout = QHBoxLayout()
