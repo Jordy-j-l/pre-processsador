@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt
+from datetime import datetime
 from pyvistaqt import QtInteractor
 from vtkmodules.generate_pyi import namespace_pyi
 
@@ -19,7 +20,8 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSlider,
     QFrame,
-    QScrollArea
+    QScrollArea,
+    QMessageBox
 )
 from visualization.viewer import Viewer
 from output.export import Export as ex
@@ -612,12 +614,31 @@ class PagePlacasParalelas(QWidget):
 
         self.plotter.render()
     def export(self):
-        exp=ex(self.malha.getTetraedrosList(),self.malha.getPointsList(),self.malha.getVetorList())
+        tetraedros = self.malha.getTetraedrosList()
+        pontos = self.malha.getPointsList()
+        vetor = self.malha.getVetorList()
+        exp=ex(tetraedros, pontos, vetor)
 
-        name_e=f"elementos-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
-        name_p=f"pontos-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
-        name_v=f"vetor-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
+        data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        dados = f"Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})-{data_hora}"
+        name_e=f"elementos-{dados}"
+        name_p=f"pontos-{dados}"
+        name_v=f"vetor-{dados}"
         exp.exportAll(name_e,name_p,name_v)
+
+        mensagem = (
+            "Ficheiros exportados com sucesso!\n\n"
+            "Tipo de malha: Placas Paralelas\n"
+            f"Data e hora: {data_hora}\n"
+            f"Divisões: ({self.dx}, {self.dy}, {self.dz})\n"
+            f"Tamanho: ({self.sx}, {self.sy}, {self.sz})\n"
+            f"Pontos: {len(pontos)}\n"
+            f"Tetraedros: {len(tetraedros)}\n"
+            f"Vetor: {vetor.tolist()}\n\n"
+            "Ficheiros:\n"
+            f"{name_e}.txt\n{name_p}.txt\n{name_v}.txt"
+        )
+        QMessageBox.information(self, "Exportação concluída", mensagem)
 
 
     def updateViewXY(self):

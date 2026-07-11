@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QMessageBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox
 
 from mesh.Builder import Malha
 from visualization.page1Vara import Page1Vara
@@ -59,15 +59,15 @@ class Page2Varas(Page1Vara):
         config.addWidget(self.vara_b_x_input)
         config.addWidget(self.vara_b_y_input)
         config.addWidget(self.createPreciseFloatInput(
-            "Raio", 0.00001, 50.0, self.raio_vara_b, self.updateRaioB, 5))
+            "Raio", 0.00001, 20.0, self.raio_vara_b, self.updateRaioB, 5))
         self.comprimento_b_input = self.createPreciseFloatInput(
             "Comprimento", 0.1, self.sz, self.comprimento_vara_b,
             self.updateComprimentoB, 2)
         config.addWidget(self.comprimento_b_input)
         config.addWidget(self.createLabeledIntegerInput(
-            "Camadas deformadas", 1, 50, self.camadas_b, self.updateCamadasB))
+            "Camadas deformadas", 1, 20, self.camadas_b, self.updateCamadasB))
         self.max_div_b_input = self.createLabeledIntegerInput(
-            "Máximo de divisões", self.min_div_b, 50, self.max_div_b, self.updateMaxDivB)
+            "Máximo de divisões", self.min_div_b, 20, self.max_div_b, self.updateMaxDivB)
         self.min_div_b_input = self.createLabeledIntegerInput(
             "Mínimo de divisões", 1, self.max_div_b, self.min_div_b, self.updateMinDivB)
         config.addWidget(self.max_div_b_input)
@@ -96,9 +96,36 @@ class Page2Varas(Page1Vara):
         self.cubos_normais = None
         self.cubos_deformados = None
         if self.vara_ativa and self.vara_b_ativa:
-            pontos, cubos, normais, deform_a, deform_b = \
-                self.malha.gerarMalha2VarasConfiguradas(self.configuracaoA(), self.configuracaoB())
-            deformados = deform_a + deform_b
+            vara_a = self.configuracaoA()
+            vara_b = self.configuracaoB()
+
+            mesma_posicao = (
+                vara_a["x"] == vara_b["x"]
+                and vara_a["y"] == vara_b["y"]
+            )
+
+            if mesma_posicao:
+                raio = (vara_a["raio"] + vara_b["raio"]) / 2
+                comprimento = (vara_a["comprimento"] + vara_b["comprimento"]) / 2
+                max_div = round((vara_a["max_div"] + vara_b["max_div"]) / 2)
+                min_div = round((vara_a["min_div"] + vara_b["min_div"]) / 2)
+                camadas = round((vara_a["camadas"] + vara_b["camadas"]) / 2)
+                ballooning = (vara_a["ballooning"] + vara_b["ballooning"]) / 2
+
+                pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
+                    vara_a["x"], vara_a["y"], raio, comprimento,
+                    max_div, min_div, camadas, ballooning,
+                )
+            else:
+                pontos, cubos, normais, deform_a, deform_b = self.malha.gerarMalha2Vara(
+                    vara_a["x"], vara_a["y"], vara_a["raio"],
+                    vara_a["comprimento"], vara_a["max_div"], vara_a["min_div"],
+                    vara_a["camadas"], vara_a["ballooning"],
+                    vara_b["x"], vara_b["y"], vara_b["raio"],
+                    vara_b["comprimento"], vara_b["max_div"], vara_b["min_div"],
+                    vara_b["camadas"], vara_b["ballooning"],
+                )
+                deformados = list(deform_a) + list(deform_b)
         elif self.vara_ativa:
             cfg = self.configuracaoA()
             pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
@@ -120,44 +147,12 @@ class Page2Varas(Page1Vara):
         self.cubos_deformados = deformados
 
     def updateVaraAtiva(self, checked):
-        if checked and self.vara_b_ativa and (self.vara_b_x, self.vara_b_y) == (self.vara_e_x, self.vara_e_y):
-            if self.dx > 1:
-                self.vara_b_x = (self.vara_e_x + 1) % self.dx
-                self.vara_b_x_input.spin_box.setValue(self.vara_b_x)
-            elif self.dy > 1:
-                self.vara_b_y = (self.vara_e_y + 1) % self.dy
-                self.vara_b_y_input.spin_box.setValue(self.vara_b_y)
-            else:
-                self.vara_toggle.blockSignals(True)
-                self.vara_toggle.setChecked(False)
-                self.vara_toggle.blockSignals(False)
-                QMessageBox.warning(
-                    self, "Posição inválida",
-                    "Aumente as divisões em X ou Y para colocar duas varas em cubos diferentes.",
-                )
-                return
         self.vara_ativa = checked
         self.vara_toggle.setText("ON" if checked else "OFF")
         self.vara_config.setVisible(checked)
         self.updateAll()
 
     def updateVaraBAtiva(self, checked):
-        if checked and self.vara_ativa and (self.vara_b_x, self.vara_b_y) == (self.vara_e_x, self.vara_e_y):
-            if self.dx > 1:
-                self.vara_b_x = (self.vara_e_x + 1) % self.dx
-                self.vara_b_x_input.spin_box.setValue(self.vara_b_x)
-            elif self.dy > 1:
-                self.vara_b_y = (self.vara_e_y + 1) % self.dy
-                self.vara_b_y_input.spin_box.setValue(self.vara_b_y)
-            else:
-                self.vara_b_toggle.blockSignals(True)
-                self.vara_b_toggle.setChecked(False)
-                self.vara_b_toggle.blockSignals(False)
-                QMessageBox.warning(
-                    self, "Posição inválida",
-                    "Aumente as divisões em X ou Y para colocar duas varas em cubos diferentes.",
-                )
-                return
         self.vara_b_ativa = checked
         self.vara_b_toggle.setText("ON" if checked else "OFF")
         self.vara_b_config.setVisible(checked)
@@ -200,3 +195,13 @@ class Page2Varas(Page1Vara):
             self.vara_b_y_input.spin_box.setValue(self.vara_b_y)
             self.vara_b_y_input.spin_box.blockSignals(False)
         super().updateDy(value)
+
+    def updateSz(self, value):
+        if hasattr(self, "comprimento_b_input"):
+            self.comprimento_b_input.spin_box.setMaximum(value)
+
+            if self.comprimento_vara_b > value:
+                self.comprimento_vara_b = value
+                self.comprimento_b_input.spin_box.setValue(value)
+
+        super().updateSz(value)

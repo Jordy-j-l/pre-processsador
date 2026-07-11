@@ -15,12 +15,11 @@ from PySide6.QtWidgets import (
 )
 
 class MenuPrincipal(QWidget):
-    def __init__(self,abrir_placas,abrir_1_vara,abrir_2_varas,abrir_malha):
+    def __init__(self,abrir_placas,abrir_1_vara,abrir_2_varas):
         super().__init__()
         self.abrir_placas = abrir_placas
         self.abrir_1_vara = abrir_1_vara
         self.abrir_2_varas = abrir_2_varas
-        self.abrir_malha = abrir_malha
         self.setup()
 
 
@@ -43,17 +42,16 @@ class MenuPrincipal(QWidget):
         builder.setAlignment(Qt.AlignCenter)
 
         #PAGE ELEMENTS
-        visualizacao = QLabel("VISUALIZAÇÃO")
-        visualizacao.setAlignment(Qt.AlignCenter)
+
 
         builder.setStyleSheet("font-size: 22px; font-weight: bold; color: Black;")
-        visualizacao.setStyleSheet("font-size: 22px; font-weight: bold; color: Black;")
+
 
 
         btn_placas = self.createButton("Placas Paralelas", self.abrir_placas)
         btn_1_vara = self.createButton("1 Vara", self.abrir_1_vara)
         btn_2_varas = self.createButton("2 Varas", self.abrir_2_varas)
-        btn_malha = self.createButton("Malha", self.abrir_malha)
+
 
         #Adiciona os elementos ao layout
 
@@ -66,8 +64,8 @@ class MenuPrincipal(QWidget):
 
         layout.addSpacing(30)
 
-        layout.addWidget(visualizacao)
-        layout.addWidget(btn_malha)
+
+
 
 
     def createButton(self, text, function):

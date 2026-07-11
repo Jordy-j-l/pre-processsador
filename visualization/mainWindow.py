@@ -4,7 +4,7 @@ from visualization.menuPrincipal import MenuPrincipal
 from visualization.pagePlacasParalelas import PagePlacasParalelas
 from visualization.page1Vara import Page1Vara
 from visualization.page2Varas import Page2Varas
-from visualization.pageMalhaView import PageMalhaView
+
 
 
 class MainWindow(QMainWindow):
@@ -21,20 +21,19 @@ class MainWindow(QMainWindow):
         self.menu_principal = MenuPrincipal(
             abrir_placas=self.showPagePlacas,
             abrir_1_vara=self.showPage1Vara,
-            abrir_2_varas=self.showPage2Varas,
-            abrir_malha=self.showPageMalhaView
+            abrir_2_varas=self.showPage2Varas
         )
 
         self.page_placas = PagePlacasParalelas(voltar=self.showMenuPrincipal)
         self.page_1_vara = Page1Vara(voltar=self.showMenuPrincipal)
         self.page_2_varas = Page2Varas(voltar=self.showMenuPrincipal)
-        self.page_malha_view = PageMalhaView()
+
 
         self.pages.addWidget(self.menu_principal)
         self.pages.addWidget(self.page_placas)
         self.pages.addWidget(self.page_1_vara)
         self.pages.addWidget(self.page_2_varas)
-        self.pages.addWidget(self.page_malha_view)
+
 
         self.showMenuPrincipal()
 
@@ -50,6 +49,5 @@ class MainWindow(QMainWindow):
     def showPage2Varas(self):
         self.pages.setCurrentWidget(self.page_2_varas)
 
-    def showPageMalhaView(self):
-        self.pages.setCurrentWidget(self.page_malha_view)
+
 

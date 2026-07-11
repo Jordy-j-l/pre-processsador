@@ -36,10 +36,11 @@ class Malha:
         self.casas_arredondamento = 12
         self.balloning = 1.55
         self.camadas_deformadas=6#em quantas camadas dividiras o cubo para aplicar a deformação de forma suave
+        self.varas_ativas = []
 
         #=======================================================================
+        self.points_list = self.gerarPointsOrdenados()
         self.cube_list=self.gerarCubos()
-        self.points_list=self.gerarPointsOrdenados()
         self.final_cube_list,self.final_points_list=self.reorganizar()
         self.final_vector=self.gerarVetor()
 
@@ -535,128 +536,98 @@ class Malha:
         Returns: None; funcionalidade ainda nao implementada.
         """
         pass
-    def gerarMalha2Vara(self,cubo_varaA_X,cubo_varaA_Y,cubo_varaB_X,cubo_varaB_Y,r,c,max_div,min_div,camadas_deformadas,balloning):
-        """Gera uma malha refinada em torno de duas varas.
-
-        Args: cubo_varaA_X/Y e cubo_varaB_X/Y: cubos das varas; r: raio;
-            c: comprimento; max_div/min_div: limites de refinamento;
-            camadas_deformadas: camadas radiais; balloning: razao de crescimento.
-        Returns: pontos, todos os cubos, cubos normais e cubos de cada vara.
-        """
-        self.validarConfiguracaoVaras(
-            [(cubo_varaA_X, cubo_varaA_Y), (cubo_varaB_X, cubo_varaB_Y)],
-            r, c, max_div, min_div, camadas_deformadas, balloning,
-        )
-        self.balloning = balloning
-        cubo_deformado = (cubo_varaA_X, cubo_varaA_Y)
+    def gerarMalha2Vara(
+            self,
+            cubo_varaA_X, cubo_varaA_Y, rA, cA, max_divA, min_divA, camadasA, ballooningA,
+            cubo_varaB_X, cubo_varaB_Y, rB, cB, max_divB, min_divB, camadasB, ballooningB,
+    ):
+        """Gera uma malha com duas varas de configuracoes diferentes."""
         origem = (0.0, 0.0, 0.0)
         tamanho_cubo_x = self.sx / self.dx
         tamanho_cubo_y = self.sy / self.dy
         tamanho_cubo_z = self.sz / self.dz
 
-        z_fim_vara = self.sz
-        z_inicio_vara = z_fim_vara - c
+        z_fim_A = self.sz
+        z_inicio_A = z_fim_A - cA
+        z_fim_B = self.sz
+        z_inicio_B = z_fim_B - cB
 
         centro_vara_a = self.calcularCentroDoCubo(
-            origem,
-            cubo_varaA_X,
-            cubo_varaA_Y,
-            tamanho_cubo_x,
-            tamanho_cubo_y,
+            origem, cubo_varaA_X, cubo_varaA_Y, tamanho_cubo_x, tamanho_cubo_y,
         )
-
         centro_vara_b = self.calcularCentroDoCubo(
-            origem,
-            cubo_varaB_X,
-            cubo_varaB_Y,
-            tamanho_cubo_x,
-            tamanho_cubo_y,
+            origem, cubo_varaB_X, cubo_varaB_Y, tamanho_cubo_x, tamanho_cubo_y,
         )
+        self.varas_ativas = [
+            {"centro": centro_vara_a, "raio": rA, "z_inicio": z_inicio_A, "z_fim": z_fim_A},
+            {"centro": centro_vara_b, "raio": rB, "z_inicio": z_inicio_B, "z_fim": z_fim_B},
+        ]
 
-        # Divisões dos cubos assim obtendo as suas respectivas divizoes
-        divisoes_x_por_cubo = self.calcularDivisoesPorEixo(
-            self.dx,
-            cubo_varaA_X,
-            max_div,
-            min_div,
-            cubo_varaB_X
+        self.balloning = ballooningA
+        div_x_A = self.calcularDivisoesPorEixo(self.dx, cubo_varaA_X, max_divA, min_divA)
+        div_y_A = self.calcularDivisoesPorEixo(self.dy, cubo_varaA_Y, max_divA, min_divA)
+        self.balloning = ballooningB
+        div_x_B = self.calcularDivisoesPorEixo(self.dx, cubo_varaB_X, max_divB, min_divB)
+        div_y_B = self.calcularDivisoesPorEixo(self.dy, cubo_varaB_Y, max_divB, min_divB)
+        divisoes_x = np.maximum(div_x_A, div_x_B)
+        divisoes_y = np.maximum(div_y_A, div_y_B)
+
+        div_z_A = self.calcularDivisoesZComVara(
+            self.dz, tamanho_cubo_z, z_inicio_A, z_fim_A,
+            max_divA, min_divA, ballooningA,
         )
-        divisoes_y_por_cubo = self.calcularDivisoesPorEixo(
-            self.dy,
-            cubo_varaA_Y,
-            max_div,
-            min_div,
-            cubo_varaB_Y
+        div_z_B = self.calcularDivisoesZComVara(
+            self.dz, tamanho_cubo_z, z_inicio_B, z_fim_B,
+            max_divB, min_divB, ballooningB,
         )
-        divisoes_z_por_cubo_lista = self.calcularDivisoesZComVara(self.dz,tamanho_cubo_z,z_inicio_vara,z_fim_vara,max_div,min_div,self.balloning)
-        x_coords, intervalos_x = self.gerarCoordenadasPorEixo(self.dx, tamanho_cubo_x, divisoes_x_por_cubo, origem[0])
-        y_coords, intervalos_y = self.gerarCoordenadasPorEixo(self.dy, tamanho_cubo_y, divisoes_y_por_cubo, origem[1])
-        z_coords, intervalos_z = self.gerarCoordenadasPorEixo(self.dz, tamanho_cubo_z, divisoes_z_por_cubo_lista,
-                                                              origem[2])
-        z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_vara)
-        z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_fim_vara)
-        z_coords_vara = z_coords[
-            (z_coords >= z_inicio_vara - 1e-12)
-            & (z_coords <= z_fim_vara + 1e-12)
-            ]
-        # lista de pontos inicial
+        divisoes_z = np.maximum(div_z_A, div_z_B)
+
+        x_coords, intervalos_x = self.gerarCoordenadasPorEixo(self.dx, tamanho_cubo_x, divisoes_x)
+        y_coords, intervalos_y = self.gerarCoordenadasPorEixo(self.dy, tamanho_cubo_y, divisoes_y)
+        z_coords, intervalos_z = self.gerarCoordenadasPorEixo(self.dz, tamanho_cubo_z, divisoes_z)
+        z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_A)
+        z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_B)
+        z_coords = self.adicionarCoordenadaObrigatoria(z_coords, self.sz)
+
+        z_coords_A = z_coords[(z_coords >= z_inicio_A - 1e-12) & (z_coords <= z_fim_A + 1e-12)]
+        z_coords_B = z_coords[(z_coords >= z_inicio_B - 1e-12) & (z_coords <= z_fim_B + 1e-12)]
+
         pontos_base = self.gerarPointsOrdenados(x_coords, y_coords, z_coords)
         mapa_pontos = self.gerarMapaPontos(pontos_base)
         pontos = [tuple(ponto) for ponto in pontos_base]
-        quantidade_pontos_y = len(y_coords)
-        quantidade_pontos_z = len(z_coords)
-
-        cubo_deformado_a = (cubo_varaA_X, cubo_varaA_Y)
-        cubo_deformado_b = (cubo_varaB_X, cubo_varaB_Y)
 
         cubos_normais = self.gerarCubosSemVara(
-            intervalos_x,
-            intervalos_y,
-            z_coords,
-            cubo_deformado_a,
-            z_inicio_vara,
-            z_fim_vara,
-            quantidade_pontos_y,
-            quantidade_pontos_z,
-            z_inicio_vara,
-            z_fim_vara,
-            cubo_deformado_b,
+            intervalos_x, intervalos_y, z_coords,
+            (cubo_varaA_X, cubo_varaA_Y), z_inicio_A, z_fim_A,
+            len(y_coords), len(z_coords),
+            z_inicio_B, z_fim_B, (cubo_varaB_X, cubo_varaB_Y),
         )
 
-
         cubos_deformadosA = self.gerarCubosDaVara(self.gerarPontosDoCuboDaVara(
-            pontos,
-            mapa_pontos,
-            x_coords,
-            y_coords,
-            z_coords_vara,
+            pontos, mapa_pontos, x_coords, y_coords, z_coords_A,
             intervalos_x[cubo_varaA_X],
             intervalos_y[cubo_varaA_Y],
-            centro_vara_a,
-            r,
-            max_div,
-            camadas_deformadas,
-            balloning),camadas_deformadas)
-        cubos_deformadosB =self.gerarCubosDaVara(self.gerarPontosDoCuboDaVara(
-            pontos,
-            mapa_pontos,
-            x_coords,
-            y_coords,
-            z_coords_vara,
+            centro_vara_a, rA, max_divA, camadasA, ballooningA,
+        ), camadasA)
+        cubos_deformadosB = self.gerarCubosDaVara(self.gerarPontosDoCuboDaVara(
+            pontos, mapa_pontos, x_coords, y_coords, z_coords_B,
             intervalos_x[cubo_varaB_X],
             intervalos_y[cubo_varaB_Y],
-            centro_vara_b,
-            r,
-            max_div,
-            camadas_deformadas,
-            balloning),camadas_deformadas)
-        pontos_totais = np.asarray(pontos, dtype=float)
+            centro_vara_b, rB, max_divB, camadasB, ballooningB,
+        ), camadasB)
 
-        cubos_totais = np.asarray(cubos_normais + cubos_deformadosA+cubos_deformadosB, dtype=int)
-        cubos_normais = np.array(cubos_normais)
-        cubos_deformadosA = np.array(cubos_deformadosA)
-        cubos_deformadosB = np.array(cubos_deformadosB)
-        return pontos_totais, cubos_totais, cubos_normais, cubos_deformadosA,cubos_deformadosB
+        pontos_totais_I = np.asarray(pontos, dtype=float)
+        cubos_totais = np.asarray(
+            cubos_normais + cubos_deformadosA + cubos_deformadosB,
+            dtype=int,
+        )
+
+        cubos_normais, pontos_totais = self.reorganizarVara(np.array(cubos_normais), pontos_totais_I)
+        cubos_deformadosA, pontos_totais = self.reorganizarVara(np.array(cubos_deformadosA), pontos_totais_I)
+        cubos_deformadosB, pontos_totais = self.reorganizarVara(np.array(cubos_deformadosB), pontos_totais_I)
+        cubos_totais, pontos_totais = self.reorganizarVara(cubos_totais, pontos_totais_I)
+
+        return pontos_totais, cubos_totais, cubos_normais, cubos_deformadosA, cubos_deformadosB
     def gerarMalha1Vara(self,cubo_vara_X,cubo_vara_Y,r,c,max_div,min_div,camadas_deformadas,balloning):
         """Gera uma malha refinada em torno de uma vara.
 
@@ -665,10 +636,6 @@ class Malha:
             camadas radiais; balloning: razao de crescimento.
         Returns: pontos, todos os cubos, cubos normais e cubos deformados.
         """
-        self.validarConfiguracaoVaras(
-            [(cubo_vara_X, cubo_vara_Y)],
-            r, c, max_div, min_div, camadas_deformadas, balloning,
-        )
         self.balloning = balloning
         cubo_deformado=(cubo_vara_X,cubo_vara_Y)
         origem = (0.0, 0.0, 0.0)
@@ -679,6 +646,9 @@ class Malha:
         z_inicio_vara = z_fim_vara - c
 
         centro_vara=self.calcularCentroDoCubo(origem,cubo_vara_X,cubo_vara_Y,tamanho_cubo_x,tamanho_cubo_y)
+        self.varas_ativas = [
+            {"centro": centro_vara, "raio": r, "z_inicio": z_inicio_vara, "z_fim": z_fim_vara}
+        ]
 
         #Divisões dos cubos assim obtendo as suas respectivas divizoes
         divisoes_x_por_cubo = self.calcularDivisoesPorEixo(
@@ -742,87 +712,12 @@ class Malha:
             camadas_deformadas,
             balloning ),camadas_deformadas
         )
-        pontos_totais = np.asarray(pontos, dtype=float)
+        pontos_totais_I = np.asarray(pontos, dtype=float)
         cubos_totais = np.asarray(cubos_normais + cubos_deformados, dtype=int)
-        cubos_normais=np.array(cubos_normais)
-        cubos_deformados=np.array(cubos_deformados)
+        cubos_normais,pontos_totais=self.reorganizarVara(np.array(cubos_normais),pontos_totais_I)
+        cubos_deformados,pontos_totais=self.reorganizarVara(np.array(cubos_deformados),pontos_totais_I)
+        cubos_totais,pontos_totais=self.reorganizarVara(cubos_totais,pontos_totais_I)
         return pontos_totais, cubos_totais,cubos_normais,cubos_deformados
-
-    def gerarMalha2VarasConfiguradas(self, vara_a, vara_b):
-        """Gera duas varas com configuracoes independentes.
-
-        Cada configuracao deve conter: x, y, raio, comprimento, max_div,
-        min_div, camadas e ballooning.
-        Returns: pontos, cubos totais, cubos normais, cubos A e cubos B.
-        """
-        configs = [vara_a, vara_b]
-        for cfg in configs:
-            self.validarConfiguracaoVaras(
-                [(cfg["x"], cfg["y"])], cfg["raio"], cfg["comprimento"],
-                cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"],
-            )
-        if (vara_a["x"], vara_a["y"]) == (vara_b["x"], vara_b["y"]):
-            raise ValueError("[VARAS_SOBREPOSTAS] Duas varas nao podem ocupar o mesmo cubo.")
-
-        origem = (0.0, 0.0, 0.0)
-        tx, ty, tz = self.sx / self.dx, self.sy / self.dy, self.sz / self.dz
-        for cfg in configs:
-            cfg["cubo"] = (cfg["x"], cfg["y"])
-            cfg["centro"] = self.calcularCentroDoCubo(origem, cfg["x"], cfg["y"], tx, ty)
-            cfg["z_fim"] = self.sz
-            cfg["z_inicio"] = self.sz - cfg["comprimento"]
-
-        def divisoes_eixo(numero, eixo):
-            resultado = np.ones(numero, dtype=int)
-            for cfg in configs:
-                for cubo in range(numero):
-                    distancia = abs(cubo - cfg[eixo])
-                    valor = round(cfg["max_div"] / (cfg["ballooning"] ** distancia))
-                    resultado[cubo] = max(resultado[cubo], cfg["min_div"], valor)
-            return resultado
-
-        div_x = divisoes_eixo(self.dx, "x")
-        div_y = divisoes_eixo(self.dy, "y")
-        div_z = np.ones(self.dz, dtype=int)
-        for cfg in configs:
-            atual = self.calcularDivisoesZComVara(
-                self.dz, tz, cfg["z_inicio"], cfg["z_fim"],
-                cfg["max_div"], cfg["min_div"], cfg["ballooning"],
-            )
-            div_z = np.maximum(div_z, atual)
-
-        x_coords, intervalos_x = self.gerarCoordenadasPorEixo(self.dx, tx, div_x)
-        y_coords, intervalos_y = self.gerarCoordenadasPorEixo(self.dy, ty, div_y)
-        z_coords, _ = self.gerarCoordenadasPorEixo(self.dz, tz, div_z)
-        for cfg in configs:
-            z_coords = self.adicionarCoordenadaObrigatoria(z_coords, cfg["z_inicio"])
-            z_coords = self.adicionarCoordenadaObrigatoria(z_coords, cfg["z_fim"])
-
-        pontos_base = self.gerarPointsOrdenados(x_coords, y_coords, z_coords)
-        pontos = [tuple(p) for p in pontos_base]
-        mapa = self.gerarMapaPontos(pontos_base)
-        cubos_normais = self.gerarCubosSemVara(
-            intervalos_x, intervalos_y, z_coords,
-            vara_a["cubo"], vara_a["z_inicio"], vara_a["z_fim"],
-            len(y_coords), len(z_coords),
-            vara_b["z_inicio"], vara_b["z_fim"], vara_b["cubo"],
-        )
-
-        deformados = []
-        for cfg in configs:
-            z_vara = z_coords[(z_coords >= cfg["z_inicio"] - 1e-12) &
-                              (z_coords <= cfg["z_fim"] + 1e-12)]
-            ids = self.gerarPontosDoCuboDaVara(
-                pontos, mapa, x_coords, y_coords, z_vara,
-                intervalos_x[cfg["x"]], intervalos_y[cfg["y"]],
-                cfg["centro"], cfg["raio"], cfg["max_div"],
-                cfg["camadas"], cfg["ballooning"],
-            )
-            deformados.append(self.gerarCubosDaVara(ids, cfg["camadas"]))
-
-        pontos = np.asarray(pontos, dtype=float)
-        cubos = np.asarray(cubos_normais + deformados[0] + deformados[1], dtype=int)
-        return pontos, cubos, cubos_normais, deformados[0], deformados[1]
 
     # =======================================Auxiliares===============================================
 
@@ -957,6 +852,44 @@ class Malha:
         if not self.isFronteiratLateral(i) and not self.isFronteiraInferior(i) and not self.isFronteiraSuperior(i):
             return True
         return False
+    def isFronteiraNaVara(self,i,pontos):
+        """Retorna True se o ponto pertence à superfície de uma vara."""
+        x, y, z = pontos[i]
+
+        for vara in self.varas_ativas:
+            centro_x, centro_y = vara["centro"]
+            distancia = np.hypot(x - centro_x, y - centro_y)
+
+            esta_na_altura_da_vara = vara["z_inicio"] <= z <= vara["z_fim"]
+            esta_no_raio_da_vara = np.isclose(distancia, vara["raio"])
+
+            if esta_na_altura_da_vara and esta_no_raio_da_vara:
+                return True
+
+        return False
+
+    def isLongeDaVara(self, i,pontos, distancia_minima=7.6):
+        """Retorna True se o ponto estiver longe de todas as varas."""
+        x, y, z = pontos[i]
+
+        for vara in self.varas_ativas:
+            centro_x, centro_y = vara["centro"]
+
+            distancia_xy = np.hypot(x - centro_x, y - centro_y) - vara["raio"]
+
+            if z < vara["z_inicio"]:
+                distancia_z = vara["z_inicio"] - z
+            elif z > vara["z_fim"]:
+                distancia_z = z - vara["z_fim"]
+            else:
+                distancia_z = 0
+
+            distancia = np.hypot(max(0, distancia_xy), distancia_z)
+
+            if distancia < distancia_minima:
+                return False
+
+        return True
 
     ###################################################################################
 
@@ -987,32 +920,74 @@ class Malha:
                 front_livre +=1
 
         return np.array([front_livre + front_lat, front_s, front_i])
-    def gerarVetorVara(self):
+    def gerarVetordaVara(self,pontos):
         """Conta os grupos de pontos da malha base.
 
         Args: Nao recebe parametros alem da instancia.
         Returns: Array [livres+lateral, superiores, inferiores].
         """
-
-        pontos =  self.points_list
-        front_s = 0 #fronteira superior
-        front_i = 0 #fronteira Inferior
-        front_lat = 0 #fronteira Lateral
+        front_V = 0 #fronteira na vara
+        front_L = 0 #fronteira longe da vara
         front_livre = 0  #Pontos Livres
 
         for i in range(len(pontos)):
 
-            if  self.isFronteiraSuperior(i):
-                front_s += 1
-            elif self.isFronteiraInferior(i):
-                front_i += 1
-            elif self.isFronteiratLateral(i):
-                front_lat += 1
+            if  self.isFronteiraNaVara(i,pontos):
+                front_V += 1
+            elif self.isLongeDaVara(i,pontos):
+                front_L += 1
             else:
                 front_livre +=1
 
-        return np.array([front_livre + front_lat, front_s, front_i])
+        return np.array([front_livre , front_V, front_L])
 
+
+
+    def reorganizarVara(self,cubos,pontos):
+        """Reordena pontos por tipo de fronteira e atualiza a conectividade.
+
+        Args: Nao recebe parametros alem da instancia.
+        Returns: Tupla (cubos reindexados, pontos reordenados).
+        """
+
+
+        newpoints = np.empty(pontos.shape, dtype=float)
+
+        mapa = np.full(len(pontos), -1, dtype=int)
+        novoid = 0
+
+        for i in range(len(pontos)):
+            if not self.isFronteiraNaVara(i,pontos) and not self.isLongeDaVara(i,pontos):
+                    newpoints[novoid] = pontos[i]
+                    mapa[i] = novoid
+                    novoid += 1
+
+        for i in range(len(pontos)):
+            if self.isFronteiraNaVara(i,pontos):
+                    newpoints[novoid] = pontos[i]
+                    mapa[i] = novoid
+                    novoid += 1
+        for i in range(len(pontos)):
+            if self.isLongeDaVara(i,pontos):
+                    newpoints[novoid] = pontos[i]
+                    mapa[i] = novoid
+                    novoid += 1
+        newcube = np.empty(cubos.shape, dtype=int)
+        for i in range(len(cubos)):
+            newcube[i][0] = 8
+            newcube[i][1] = mapa[cubos[i][1]]
+            newcube[i][2] = mapa[cubos[i][2]]
+            newcube[i][3] = mapa[cubos[i][3]]
+            newcube[i][4] = mapa[cubos[i][4]]
+            newcube[i][5] = mapa[cubos[i][5]]
+            newcube[i][6] = mapa[cubos[i][6]]
+            newcube[i][7] = mapa[cubos[i][7]]
+            newcube[i][8] = mapa[cubos[i][8]]
+
+        if np.any(mapa == -1):
+            print("ERRO: existem pontos não classificados")
+
+        return newcube, newpoints
 
     def reorganizar(self):
         """Reordena pontos por tipo de fronteira e atualiza a conectividade.
@@ -1066,8 +1041,6 @@ class Malha:
 
         return newcube, newpoints
 
-
-
 #Getters e Setters
 
     def getCubesList(self):
@@ -1082,110 +1055,4 @@ class Malha:
     def getVetorList(self):
         """Devolve as contagens de fronteira. Args: nenhum. Returns: vetor de contagens."""
         return self.final_vector
-
-    # ============================== Validacoes ==============================
-
-    def validarConfiguracaoVaras(
-            self,
-            cubos_varas,
-            raio,
-            comprimento,
-            max_div,
-            min_div,
-            camadas_deformadas,
-            ballooning,
-    ):
-        """Valida os argumentos usados para gerar malhas com varas.
-
-        Args: cubos_varas: lista de pares (x, y); raio: raio das varas;
-            comprimento: comprimento vertical; max_div/min_div: limites de
-            refinamento; camadas_deformadas: numero de camadas radiais;
-            ballooning: razao de crescimento das camadas.
-        Returns: None. Lanca TypeError ou ValueError quando os dados sao invalidos.
-        """
-        if not cubos_varas:
-            raise ValueError("[VARA_SEM_POSICAO] Deve indicar pelo menos uma vara.")
-
-        for numero, cubo in enumerate(cubos_varas, start=1):
-            if not isinstance(cubo, (tuple, list)) or len(cubo) != 2:
-                raise TypeError(
-                    f"[VARA_POSICAO_INVALIDA] A posicao da vara {numero} deve ser (x, y)."
-                )
-
-            cubo_x, cubo_y = cubo
-            if not isinstance(cubo_x, (int, np.integer)) or isinstance(cubo_x, bool):
-                raise TypeError(
-                    f"[VARA_X_TIPO] O indice X da vara {numero} deve ser inteiro."
-                )
-            if not isinstance(cubo_y, (int, np.integer)) or isinstance(cubo_y, bool):
-                raise TypeError(
-                    f"[VARA_Y_TIPO] O indice Y da vara {numero} deve ser inteiro."
-                )
-            if not 0 <= cubo_x < self.dx:
-                raise ValueError(
-                    f"[VARA_X_INTERVALO] O indice X da vara {numero} deve estar "
-                    f"entre 0 e {self.dx - 1}."
-                )
-            if not 0 <= cubo_y < self.dy:
-                raise ValueError(
-                    f"[VARA_Y_INTERVALO] O indice Y da vara {numero} deve estar "
-                    f"entre 0 e {self.dy - 1}."
-                )
-
-        if len(set(tuple(cubo) for cubo in cubos_varas)) != len(cubos_varas):
-            raise ValueError(
-                "[VARAS_SOBREPOSTAS] Duas varas nao podem ocupar o mesmo cubo."
-            )
-
-        self.validarNumeroReal(raio, "raio")
-        if raio <= 0:
-            raise ValueError("[VARA_RAIO_POSITIVO] O raio deve ser maior que zero.")
-
-        metade_menor_lado = min(self.sx / self.dx, self.sy / self.dy) / 2
-        if raio >= metade_menor_lado:
-            raise ValueError(
-                "[VARA_RAIO_MAXIMO] O raio deve ser menor que metade do menor "
-                f"lado do cubo ({metade_menor_lado})."
-            )
-
-        self.validarNumeroReal(comprimento, "comprimento")
-        if not 0 < comprimento <= self.sz:
-            raise ValueError(
-                f"[VARA_COMPRIMENTO] O comprimento deve estar entre 0 e {self.sz}."
-            )
-
-        for nome, valor in (
-                ("max_div", max_div),
-                ("min_div", min_div),
-                ("camadas_deformadas", camadas_deformadas),
-        ):
-            if not isinstance(valor, (int, np.integer)) or isinstance(valor, bool):
-                raise TypeError(f"[VARA_{nome.upper()}_TIPO] {nome} deve ser inteiro.")
-
-        if min_div < 1:
-            raise ValueError("[VARA_MIN_DIV] min_div deve ser pelo menos 1.")
-        if max_div < 2:
-            raise ValueError("[VARA_MAX_DIV] max_div deve ser pelo menos 2.")
-        if min_div > max_div:
-            raise ValueError("[VARA_DIVISOES] min_div nao pode ser maior que max_div.")
-        if camadas_deformadas < 1:
-            raise ValueError(
-                "[VARA_CAMADAS] camadas_deformadas deve ser pelo menos 1."
-            )
-
-        self.validarNumeroReal(ballooning, "ballooning")
-        if ballooning < 1:
-            raise ValueError("[VARA_BALLOONING] ballooning deve ser maior ou igual a 1.")
-
-    @staticmethod
-    def validarNumeroReal(valor, nome):
-        """Valida se um argumento e um numero real finito.
-
-        Args: valor: valor a validar; nome: nome apresentado no erro.
-        Returns: None. Lanca TypeError ou ValueError quando invalido.
-        """
-        if not isinstance(valor, (int, float, np.integer, np.floating)) or isinstance(valor, bool):
-            raise TypeError(f"[VARA_{nome.upper()}_TIPO] {nome} deve ser numerico.")
-        if not np.isfinite(valor):
-            raise ValueError(f"[VARA_{nome.upper()}_FINITO] {nome} deve ser finito.")
 

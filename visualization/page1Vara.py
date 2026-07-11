@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt
+from datetime import datetime
 from pyvistaqt import QtInteractor
 from vtkmodules.generate_pyi import namespace_pyi
 
@@ -19,7 +20,8 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSlider,
     QFrame,
-    QScrollArea
+    QScrollArea,
+    QMessageBox
 )
 from visualization.viewer import Viewer
 from output.export import Export as ex
@@ -159,11 +161,11 @@ class Page1Vara(QWidget):
 
         scroll_layout.addWidget(section_mesh)
 
-        scroll_layout.addWidget(self.createInputInt("Div-x", 1, 50, self.dx,self.updateDx))
+        scroll_layout.addWidget(self.createInputInt("Div-x", 1, 20, self.dx,self.updateDx))
 
-        scroll_layout.addWidget(self.createInputInt("Div-y", 1, 50, self.dy, self.updateDy))
+        scroll_layout.addWidget(self.createInputInt("Div-y", 1, 20, self.dy, self.updateDy))
 
-        scroll_layout.addWidget(self.createInputInt("Div-z", 1, 50, self.dz, self.updateDz))
+        scroll_layout.addWidget(self.createInputInt("Div-z", 1, 20, self.dz, self.updateDz))
 
 
 
@@ -213,11 +215,11 @@ class Page1Vara(QWidget):
         self.vara_y_spin = self.createLabeledIntegerInput("Eixo Y", 0, self.dy - 1, self.vara_e_y, self.updateVara_e_y)
         vara_config_layout.addWidget(self.vara_x_spin)
         vara_config_layout.addWidget(self.vara_y_spin)
-        vara_config_layout.addWidget(self.createPreciseFloatInput("Raio", 0.00001, 50.0, self.raio_vara, self.updateRaio, 5))
+        vara_config_layout.addWidget(self.createPreciseFloatInput("Raio", 0.00001, 20.0, self.raio_vara, self.updateRaio, 5))
         self.comprimento_input = self.createPreciseFloatInput("Comprimento", 0.1, self.sz, self.comprimento_vara, self.updateComprimento, 2)
         vara_config_layout.addWidget(self.comprimento_input)
-        vara_config_layout.addWidget(self.createLabeledIntegerInput("Camadas deformadas", 1, 50, self.camadas_deformadas, self.updateCamadas))
-        self.max_div_input = self.createLabeledIntegerInput("Máximo de divisões", self.min_div, 50, self.max_div, self.updateMaxDiv)
+        vara_config_layout.addWidget(self.createLabeledIntegerInput("Camadas deformadas", 1, 20, self.camadas_deformadas, self.updateCamadas))
+        self.max_div_input = self.createLabeledIntegerInput("Máximo de divisões", self.min_div, 20, self.max_div, self.updateMaxDiv)
         self.min_div_input = self.createLabeledIntegerInput("Mínimo de divisões", 1, self.max_div, self.min_div, self.updateMinDiv)
         vara_config_layout.addWidget(self.max_div_input)
         vara_config_layout.addWidget(self.min_div_input)
@@ -859,12 +861,100 @@ class Page1Vara(QWidget):
 
         self.plotter.render()
     def export(self):
-        exp=ex(self.malha.getTetraedrosList(),self.malha.getPointsList(),self.malha.getVetorList())
+        vara_b_ativa = getattr(self, "vara_b_ativa", False)
 
-        name_e=f"elementos-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
-        name_p=f"pontos-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
-        name_v=f"vetor-Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})"
+        if self.vara_ativa or vara_b_ativa:
+            vetor = self.malha.gerarVetordaVara(self.malha.getPointsList())
+        else:
+            vetor = self.malha.getVetorList()
+
+        tetraedros = self.malha.getTetraedrosList()
+        pontos = self.malha.getPointsList()
+        exp=ex(tetraedros, pontos, vetor, v=1000000)
+
+        if self.vara_ativa and vara_b_ativa:
+            tipo_malha = "2Varas"
+        elif self.vara_ativa or vara_b_ativa:
+            tipo_malha = "1Vara"
+        else:
+            tipo_malha = "Normal"
+
+        data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        dados = f"Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})-{tipo_malha}-{data_hora}"
+        name_e = f"elementos-{dados}"
+        name_p = f"pontos-{dados}"
+        name_v = f"vetor-{dados}"
         exp.exportAll(name_e,name_p,name_v)
+
+        detalhes_varas = ""
+        if self.vara_ativa and vara_b_ativa:
+            detalhes_varas = (
+                "\nVara 1:\n"
+                f"  Posição: ({self.vara_e_x}, {self.vara_e_y})\n"
+                f"  Raio: {self.raio_vara}\n"
+                f"  Comprimento: {self.comprimento_vara}\n"
+                f"  Camadas: {self.camadas_deformadas}\n"
+                f"  Divisões mín./máx.: {self.min_div}/{self.max_div}\n"
+                f"  Ballooning: {self.ballooning}\n"
+                "Vara 2:\n"
+                f"  Posição: ({self.vara_b_x}, {self.vara_b_y})\n"
+                f"  Raio: {self.raio_vara_b}\n"
+                f"  Comprimento: {self.comprimento_vara_b}\n"
+                f"  Camadas: {self.camadas_b}\n"
+                f"  Divisões mín./máx.: {self.min_div_b}/{self.max_div_b}\n"
+                f"  Ballooning: {self.ballooning_b}\n"
+            )
+
+            if self.vara_e_x == self.vara_b_x and self.vara_e_y == self.vara_b_y:
+                raio_medio = (self.raio_vara + self.raio_vara_b) / 2
+                comprimento_medio = (self.comprimento_vara + self.comprimento_vara_b) / 2
+                camadas_medias = round((self.camadas_deformadas + self.camadas_b) / 2)
+                min_div_medio = round((self.min_div + self.min_div_b) / 2)
+                max_div_medio = round((self.max_div + self.max_div_b) / 2)
+                ballooning_medio = (self.ballooning + self.ballooning_b) / 2
+                detalhes_varas += (
+                    "Varas sobrepostas - valores usados:\n"
+                    f"  Raio médio: {raio_medio}\n"
+                    f"  Comprimento médio: {comprimento_medio}\n"
+                    f"  Camadas médias: {camadas_medias}\n"
+                    f"  Divisões mín./máx. médias: {min_div_medio}/{max_div_medio}\n"
+                    f"  Ballooning médio: {ballooning_medio}\n"
+                )
+        elif self.vara_ativa:
+            detalhes_varas = (
+                "\nVara 1:\n"
+                f"  Posição: ({self.vara_e_x}, {self.vara_e_y})\n"
+                f"  Raio: {self.raio_vara}\n"
+                f"  Comprimento: {self.comprimento_vara}\n"
+                f"  Camadas: {self.camadas_deformadas}\n"
+                f"  Divisões mín./máx.: {self.min_div}/{self.max_div}\n"
+                f"  Ballooning: {self.ballooning}\n"
+            )
+        elif vara_b_ativa:
+            detalhes_varas = (
+                "\nVara 2:\n"
+                f"  Posição: ({self.vara_b_x}, {self.vara_b_y})\n"
+                f"  Raio: {self.raio_vara_b}\n"
+                f"  Comprimento: {self.comprimento_vara_b}\n"
+                f"  Camadas: {self.camadas_b}\n"
+                f"  Divisões mín./máx.: {self.min_div_b}/{self.max_div_b}\n"
+                f"  Ballooning: {self.ballooning_b}\n"
+            )
+
+        mensagem = (
+            "Ficheiros exportados com sucesso!\n\n"
+            f"Tipo de malha: {tipo_malha}\n"
+            f"Data e hora: {data_hora}\n"
+            f"Divisões: ({self.dx}, {self.dy}, {self.dz})\n"
+            f"Tamanho: ({self.sx}, {self.sy}, {self.sz})\n"
+            f"Pontos: {len(pontos)}\n"
+            f"Tetraedros: {len(tetraedros)}\n"
+            f"Vetor: {vetor.tolist()}\n"
+            f"{detalhes_varas}\n"
+            "Ficheiros:\n"
+            f"{name_e}.txt\n{name_p}.txt\n{name_v}.txt"
+        )
+        QMessageBox.information(self, "Exportação concluída", mensagem)
 
 
     def updateViewXY(self):
