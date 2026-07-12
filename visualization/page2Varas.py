@@ -59,7 +59,7 @@ class Page2Varas(Page1Vara):
         config.addWidget(self.vara_b_x_input)
         config.addWidget(self.vara_b_y_input)
         config.addWidget(self.createPreciseFloatInput(
-            "Raio", 0.00001, 20.0, self.raio_vara_b, self.updateRaioB, 5))
+            "Raio", 0.00001, min(self.dx/self.sx,self.dy/self.sy)/2, self.raio_vara_b, self.updateRaioB, 5))
         self.comprimento_b_input = self.createPreciseFloatInput(
             "Comprimento", 0.1, self.sz, self.comprimento_vara_b,
             self.updateComprimentoB, 2)

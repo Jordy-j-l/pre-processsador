@@ -215,7 +215,7 @@ class Page1Vara(QWidget):
         self.vara_y_spin = self.createLabeledIntegerInput("Eixo Y", 0, self.dy - 1, self.vara_e_y, self.updateVara_e_y)
         vara_config_layout.addWidget(self.vara_x_spin)
         vara_config_layout.addWidget(self.vara_y_spin)
-        vara_config_layout.addWidget(self.createPreciseFloatInput("Raio", 0.00001, 20.0, self.raio_vara, self.updateRaio, 5))
+        vara_config_layout.addWidget(self.createPreciseFloatInput("Raio", 0.00001, min(self.dx/self.sx,self.dy/self.sy)/2, self.raio_vara, self.updateRaio, 5))
         self.comprimento_input = self.createPreciseFloatInput("Comprimento", 0.1, self.sz, self.comprimento_vara, self.updateComprimento, 2)
         vara_config_layout.addWidget(self.comprimento_input)
         vara_config_layout.addWidget(self.createLabeledIntegerInput("Camadas deformadas", 1, 20, self.camadas_deformadas, self.updateCamadas))
