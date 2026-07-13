@@ -1,7 +1,6 @@
 from PySide6.QtCore import Qt
 from datetime import datetime
 from pyvistaqt import QtInteractor
-from vtkmodules.generate_pyi import namespace_pyi
 
 from mesh.Builder import Malha
 import numpy

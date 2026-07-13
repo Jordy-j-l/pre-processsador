@@ -28,8 +28,15 @@
 
 
 import sys
-from PySide6.QtWidgets import QApplication
-from visualization.mainWindow import MainWindow
+
+try:
+    from PySide6.QtWidgets import QApplication
+    from visualization.mainWindow import MainWindow
+except ImportError as erro:
+    print("Nao foi possivel iniciar porque faltam dependencias.")
+    print("Execute: powershell -ExecutionPolicy Bypass -File .\\run.ps1")
+    print(f"Detalhe: {erro}")
+    raise SystemExit(1) from erro
 
 def menuPrincipal():
     pass
