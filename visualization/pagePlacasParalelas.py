@@ -128,11 +128,11 @@ class PagePlacasParalelas(QWidget):
 
         scroll_layout.addWidget(section_mesh)
 
-        scroll_layout.addWidget(self.createInputInt("Div-x", 1, 50, self.dx,self.updateDx))
+        scroll_layout.addWidget(self.createInputInt("Div-x", 1, 20, self.dx,self.updateDx))
 
-        scroll_layout.addWidget(self.createInputInt("Div-y", 1, 50, self.dy, self.updateDy))
+        scroll_layout.addWidget(self.createInputInt("Div-y", 1, 20, self.dy, self.updateDy))
 
-        scroll_layout.addWidget(self.createInputInt("Div-z", 1, 50, self.dz, self.updateDz))
+        scroll_layout.addWidget(self.createInputInt("Div-z", 1, 20, self.dz, self.updateDz))
 
 
 
