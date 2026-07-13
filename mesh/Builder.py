@@ -39,11 +39,11 @@ class Malha:
         self.varas_ativas = []
 
         #=======================================================================
-        self.points_list = self.gerarPointsOrdenados()
+        """self.points_list = self.gerarPointsOrdenados()
         self.cube_list=self.gerarCubos()
         self.final_cube_list,self.final_points_list=self.reorganizar()
         self.final_vector=self.gerarVetor()
-
+        return self.final_tetraedro_list"""
     # =======================================================================#
     #=====================Pontos/Indice======================================#
     # =======================================================================#
@@ -528,6 +528,61 @@ class Malha:
 
         return tetraedro
 
+    def divCubesInTetraedrosF(self,cube_list,pontos):
+        """Divide cada hexaedro final em seis tetraedros orientados positivamente.
+
+        Args: Nao recebe parametros alem da instancia.
+        Returns: Array com tipo 4 e quatro indices por tetraedro.
+        """
+
+        c = 0
+        tetraedro = np.empty(((len(cube_list) * 6), 5), dtype=int)
+
+        for i in range(len(cube_list)):
+            tetraedro[c] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 1] = [4, cube_list[i, 1], cube_list[i, 2], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 2] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 6], cube_list[i, 7]]
+            tetraedro[c + 3] = [4, cube_list[i, 1], cube_list[i, 5], cube_list[i, 8], cube_list[i, 7]]
+            tetraedro[c + 4] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 3], cube_list[i, 7]]
+            tetraedro[c + 5] = [4, cube_list[i, 1], cube_list[i, 4], cube_list[i, 8], cube_list[i, 7]]
+            c += 6
+
+        for i in range(len(tetraedro)):
+            ids = tetraedro[i, 1:5]  # indice dos 4 pontos do tetraedro da posiçao I
+
+            p0 = pontos[ids[0]]
+            p1 = pontos[ids[1]]
+            p2 = pontos[ids[2]]
+            p3 = pontos[ids[3]]
+
+            volume = np.linalg.det(np.array([
+                p1 - p0,
+                p2 - p0,
+                p3 - p0
+            ])) / 6
+
+            if volume < 0:
+                tetraedro[i, 3], tetraedro[i, 4] = tetraedro[i, 4], tetraedro[i, 3]
+        volumes = []
+
+        for i in range(len(tetraedro)):
+            ids = tetraedro[i, 1:5]
+
+            p0 = pontos[ids[0]]
+            p1 = pontos[ids[1]]
+            p2 = pontos[ids[2]]
+            p3 = pontos[ids[3]]
+
+            volume = np.linalg.det(np.array([
+                p1 - p0,
+                p2 - p0,
+                p3 - p0
+            ])) / 6
+
+            volumes.append(volume)
+
+        return tetraedro
+
     # ========================================BUILDER=================================================
     def gerarMalhaPlacasParalelas(self):
         """Reserva a geracao da malha de placas paralelas.
@@ -616,17 +671,14 @@ class Malha:
             centro_vara_b, rB, max_divB, camadasB, ballooningB,
         ), camadasB)
 
-        pontos_totais_I = np.asarray(pontos, dtype=float)
+        pontos_totais = np.asarray(pontos, dtype=float)
         cubos_totais = np.asarray(
             cubos_normais + cubos_deformadosA + cubos_deformadosB,
             dtype=int,
         )
-
-        cubos_normais, pontos_totais = self.reorganizarVara(np.array(cubos_normais), pontos_totais_I)
-        cubos_deformadosA, pontos_totais = self.reorganizarVara(np.array(cubos_deformadosA), pontos_totais_I)
-        cubos_deformadosB, pontos_totais = self.reorganizarVara(np.array(cubos_deformadosB), pontos_totais_I)
-        cubos_totais, pontos_totais = self.reorganizarVara(cubos_totais, pontos_totais_I)
-
+        self.final_points_list = pontos_totais
+        self.final_cube_list = cubos_totais
+        self.final_tetraedro_list = self.divCubesInTetraedrosF(cubos_totais, pontos_totais)
         return pontos_totais, cubos_totais, cubos_normais, cubos_deformadosA, cubos_deformadosB
     def gerarMalha1Vara(self,cubo_vara_X,cubo_vara_Y,r,c,max_div,min_div,camadas_deformadas,balloning):
         """Gera uma malha refinada em torno de uma vara.
@@ -712,13 +764,25 @@ class Malha:
             camadas_deformadas,
             balloning ),camadas_deformadas
         )
-        pontos_totais_I = np.asarray(pontos, dtype=float)
+        pontos_totais = np.asarray(pontos, dtype=float)
         cubos_totais = np.asarray(cubos_normais + cubos_deformados, dtype=int)
-        cubos_normais,pontos_totais=self.reorganizarVara(np.array(cubos_normais),pontos_totais_I)
-        cubos_deformados,pontos_totais=self.reorganizarVara(np.array(cubos_deformados),pontos_totais_I)
-        cubos_totais,pontos_totais=self.reorganizarVara(cubos_totais,pontos_totais_I)
+        self.final_points_list = pontos_totais
+        self.final_cube_list = cubos_totais
+        self.final_tetraedro_list = self.divCubesInTetraedrosF(cubos_totais, pontos_totais)
         return pontos_totais, cubos_totais,cubos_normais,cubos_deformados
 
+    def gerarMalhaNormal(self):
+        pontos = self.gerarPointsOrdenados()
+        cubos = self.gerarCubos()
+
+        cubos, pontos = self.reorganizar(cubos,pontos)
+
+        self.varas_ativas = []
+        self.final_points_list = pontos
+        self.final_cube_list = cubos
+        self.final_vector = self.gerarVetor(pontos)
+        self.final_tetraedro_list=self.divCubesInTetraedrosF(cubos, pontos)
+        return pontos, cubos
     # =======================================Auxiliares===============================================
 
     def calcularCentroDoCubo(self,origem, cubo_x, cubo_y, tamanho_cubo_x, tamanho_cubo_y):
@@ -895,14 +959,12 @@ class Malha:
 
 
 
-    def gerarVetor(self):
+    def gerarVetor(self,pontos):
         """Conta os grupos de pontos da malha base.
 
         Args: Nao recebe parametros alem da instancia.
         Returns: Array [livres+lateral, superiores, inferiores].
         """
-
-        pontos =  self.points_list
         front_s = 0 #fronteira superior
         front_i = 0 #fronteira Inferior
         front_lat = 0 #fronteira Lateral
@@ -989,15 +1051,15 @@ class Malha:
 
         return newcube, newpoints
 
-    def reorganizar(self):
+    def reorganizar(self,cubos,pontos):
         """Reordena pontos por tipo de fronteira e atualiza a conectividade.
 
         Args: Nao recebe parametros alem da instancia.
         Returns: Tupla (cubos reindexados, pontos reordenados).
         """
 
-        cubos=self.cube_list
-        pontos= self.points_list
+
+        self.points_list=pontos
 
         newpoints = np.empty(pontos.shape, dtype=float)
 
@@ -1041,6 +1103,64 @@ class Malha:
 
         return newcube, newpoints
 
+    def removerPontosNaoUtilizados(self, cubos, pontos):
+        """
+        Remove pontos que não pertencem a nenhum cubo
+        e atualiza os índices dos cubos.
+        """
+
+        # 1. Descobrir quais pontos são utilizados/cria um array com a mesma dimensão que o array de pontos orrginal tudo a false
+        ponto_usado = np.full(len(pontos), False, dtype=bool)
+
+        for cubo in cubos:#vai percorer todos os cubos e todos os indices e vai verificar se esse indice foi referenciado se sim muda de false para true
+            for posicao in range(1, 9):
+                indice_ponto = cubo[posicao]
+                ponto_usado[indice_ponto] = True
+
+        # 2. Criar o mapa e a nova lista de pontos
+        mapa = np.full(len(pontos), -1, dtype=int)
+        novos_pontos = []
+
+        novo_indice = 0
+
+        for i in range(len(pontos)):#vai percorrer todos os pontos da lista de pontos
+            if ponto_usado[i]:#se esse ponto estiver marcado como verdadeiro ele vai ser colocado na lista de pontos
+                novos_pontos.append(pontos[i])
+
+                mapa[i] = novo_indice#o mapa vai na possição do ponto antigo receber qual sera o novo ponto assim podendo comparar
+                novo_indice += 1
+
+        # 3. Copiar os cubos, substituindo os índices antigos
+        novos_cubos = []
+
+        for cubo in cubos:
+            novo_cubo = [8]
+
+            for posicao in range(1, 9):
+                indice_antigo = cubo[posicao]
+                indice_novo = mapa[indice_antigo]
+
+                novo_cubo.append(indice_novo)
+
+            novos_cubos.append(novo_cubo)
+
+        return (
+            np.asarray(novos_cubos, dtype=int),
+            np.asarray(novos_pontos, dtype=float),
+        )
+
+    def clean(self, cubos, pontos):
+        cubos, pontos = self.removerPontosNaoUtilizados(cubos,pontos)
+
+        if self.varas_ativas:
+            cubos, pontos = self.reorganizarVara(cubos, pontos)
+        else:
+            cubos, pontos = self.reorganizar(cubos,pontos)
+
+        tetraedros = self.divCubesInTetraedrosF(cubos, pontos)
+
+        return tetraedros, pontos
+
 #Getters e Setters
 
     def getCubesList(self):
@@ -1051,7 +1171,7 @@ class Malha:
         return self.final_points_list
     def getTetraedrosList(self):
         """Devolve a malha tetraedrica. Args: nenhum. Returns: array de tetraedros."""
-        return self.divCubesInTetraedros()
+        return self.final_tetraedro_list
     def getVetorList(self):
         """Devolve as contagens de fronteira. Args: nenhum. Returns: vetor de contagens."""
         return self.final_vector

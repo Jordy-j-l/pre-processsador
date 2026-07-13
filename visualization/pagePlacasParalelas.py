@@ -50,7 +50,7 @@ class PagePlacasParalelas(QWidget):
 
     def updateMalha(self,sxf,syf,szf):
         self.malha=Malha( self.dx, self.dy, self.dz, sxf, syf, szf)
-
+        self.malha.gerarMalhaNormal()
 
 
 

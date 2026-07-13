@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox
-
+from visualization.viewer import Viewer
 from mesh.Builder import Malha
 from visualization.page1Vara import Page1Vara
 
@@ -137,6 +137,7 @@ class Page2Varas(Page1Vara):
                 cfg["x"], cfg["y"], cfg["raio"], cfg["comprimento"],
                 cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"])
         else:
+            self.malha.gerarMalhaNormal()
             return
 
         self.malha.points_list = pontos
@@ -178,6 +179,55 @@ class Page2Varas(Page1Vara):
         self.max_div_b_input.spin_box.setMinimum(value)
         self._atualizarB()
 
+    def updateViewr(self):
+        self.plotter.clear()
+
+        alguma_vara_ativa = (
+                self.vara_ativa
+                or self.vara_b_ativa
+        )
+
+        if alguma_vara_ativa:
+            if (
+                    self.mostrar_normais
+                    and self.cubos_normais is not None
+                    and len(self.cubos_normais) > 0
+            ):
+                Viewer.tetrahedron(
+                    self.plotter,
+                    self.tetraedrosDosCubos(
+                        self.cubos_normais,
+                    ),
+                    self.malha.getPointsList(),
+                    "Blue",
+                    opacity=self.opacity,
+                )
+
+            if (
+                    self.mostrar_deformados
+                    and self.cubos_deformados is not None
+                    and len(self.cubos_deformados) > 0
+            ):
+                Viewer.tetrahedron(
+                    self.plotter,
+                    self.tetraedrosDosCubos(
+                        self.cubos_deformados,
+                    ),
+                    self.malha.getPointsList(),
+                    "Red",
+                    opacity=self.opacity,
+                )
+
+        elif self.mostrar_normais:
+            Viewer.tetrahedron(
+                self.plotter,
+                self.malha.getTetraedrosList(),
+                self.malha.getPointsList(),
+                "Blue",
+                opacity=self.opacity,
+            )
+
+        self.plotter.render()
     def updateDx(self, value):
         if hasattr(self, "vara_b_x_input"):
             self.vara_b_x = min(self.vara_b_x, value - 1)

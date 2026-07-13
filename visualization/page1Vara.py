@@ -57,28 +57,40 @@ class Page1Vara(QWidget):
         self.updateMalha(self.sx, self.sy, self.sz)
         self.updateViewr()
 
+    def updateMalha(self, sxf, syf, szf):
+        self.malha = Malha(
+            self.dx,
+            self.dy,
+            self.dz,
+            sxf,
+            syf,
+            szf,
+        )
 
-
-
-
-    def updateMalha(self,sxf,syf,szf):
-        self.malha=Malha( self.dx, self.dy, self.dz, sxf, syf, szf)
         self.cubos_normais = None
         self.cubos_deformados = None
+
         if self.vara_ativa:
-            pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
-                self.vara_e_x, self.vara_e_y, self.raio_vara,
-                self.comprimento_vara, self.max_div, self.min_div,
-                self.camadas_deformadas, self.ballooning,
+            pontos, cubos, normais, deformados = (
+                self.malha.gerarMalha1Vara(
+                    self.vara_e_x,
+                    self.vara_e_y,
+                    self.raio_vara,
+                    self.comprimento_vara,
+                    self.max_div,
+                    self.min_div,
+                    self.camadas_deformadas,
+                    self.ballooning,
+                )
             )
-            self.malha.points_list = pontos
-            self.malha.cube_list = cubos
-            self.malha.final_points_list = pontos
-            self.malha.final_cube_list = cubos
             self.cubos_normais = normais
             self.cubos_deformados = deformados
 
+        else:
+            pontos, cubos = self.malha.gerarMalhaNormal()
 
+            self.cubos_normais = cubos
+            self.cubos_deformados = None
 
 
     def setup(self):
@@ -842,6 +854,7 @@ class Page1Vara(QWidget):
             self.malha.final_cube_list = cubos_anteriores
 
     def updateViewr(self):
+
         self.plotter.clear()
         if self.vara_ativa:
             if (
@@ -862,15 +875,15 @@ class Page1Vara(QWidget):
         self.plotter.render()
     def export(self):
         vara_b_ativa = getattr(self, "vara_b_ativa", False)
-
+        elementos,pontos=self.malha.clean(self.malha.getCubesList(),self.malha.getPointsList())
         if self.vara_ativa or vara_b_ativa:
-            vetor = self.malha.gerarVetordaVara(self.malha.getPointsList())
+            vetor = self.malha.gerarVetordaVara(pontos)
         else:
             vetor = self.malha.getVetorList()
 
-        tetraedros = self.malha.getTetraedrosList()
-        pontos = self.malha.getPointsList()
-        exp=ex(tetraedros, pontos, vetor, v=1000000)
+
+
+        exp=ex(elementos, pontos, vetor, v=1000000)
 
         if self.vara_ativa and vara_b_ativa:
             tipo_malha = "2Varas"
@@ -948,7 +961,7 @@ class Page1Vara(QWidget):
             f"Divisões: ({self.dx}, {self.dy}, {self.dz})\n"
             f"Tamanho: ({self.sx}, {self.sy}, {self.sz})\n"
             f"Pontos: {len(pontos)}\n"
-            f"Tetraedros: {len(tetraedros)}\n"
+            f"Tetraedros: {len(elementos)}\n"
             f"Vetor: {vetor.tolist()}\n"
             f"{detalhes_varas}\n"
             "Ficheiros:\n"
