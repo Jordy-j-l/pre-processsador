@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt
 from datetime import datetime
+from pathlib import Path
 from pyvistaqt import QtInteractor
 
 from mesh.Builder import Malha
@@ -292,6 +293,25 @@ class PagePlacasParalelas(QWidget):
         """)
 
         return button
+
+    def guardarPrintMalha(self):
+        """Guarda a vista atual do PyVista como PNG."""
+        pasta = Path(__file__).resolve().parents[1] / "output" / "Print"
+        pasta.mkdir(parents=True, exist_ok=True)
+        data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
+        caminho = pasta / f"malha-{data_hora}.png"
+
+        try:
+            self.plotter.screenshot(str(caminho))
+        except Exception as erro:
+            QMessageBox.critical(self, "Erro ao guardar imagem", str(erro))
+            return
+
+        QMessageBox.information(
+            self,
+            "Imagem guardada",
+            f"A vista atual da malha foi guardada em:\n{caminho}",
+        )
 
     def createInputInt(self, text, min_value, max_value, value, function):
         row = QWidget()

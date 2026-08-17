@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Export:
-    def __init__(self,element_list,point_list,vector_list,rho=1,v=100):
+    def __init__(self,element_list,point_list,vector_list,rho=100,v=1000000):
         self.element_list = element_list
         self.point_list = point_list
         self.vector_list = vector_list
@@ -24,12 +24,12 @@ class Export:
         np.savetxt(f"output/downloads/{name}.txt", self.expor_tp, fmt="%.6f")
 
     def exportElementList(self,name="elementos"):
-        for i in range(len(self.element_list)):
-            self.export_tetra[i, 0] = self.element_list[i][1]
-            self.export_tetra[i, 1] = self.element_list[i][2]
-            self.export_tetra[i, 2] = self.element_list[i][3]
-            self.export_tetra[i, 3] = self.element_list[i][4]
-            self.export_tetra[i, 4] = self.rho
+        self.export_tetra[:, :4] = self.element_list[:, :4]
+        self.export_tetra[:, 4] = np.where(
+            self.element_list[:, 4] == 0,
+            self.rho,
+            500,
+        )
         np.savetxt(f"output/downloads/{name}.txt", self.export_tetra, fmt="%.6f")
     def exportVector(self,name="Vetor"):
         np.savetxt(f"output/downloads/{name}.txt",  self.vector_list, fmt="%d")

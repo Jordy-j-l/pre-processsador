@@ -1,5 +1,7 @@
+import numpy as np
 from PySide6.QtCore import Qt
 from datetime import datetime
+from pathlib import Path
 from pyvistaqt import QtInteractor
 
 from mesh.Builder import Malha
@@ -57,6 +59,7 @@ class Page1Vara(QWidget):
         self.updateViewr()
 
     def updateMalha(self, sxf, syf, szf):
+        self._ajustarRaiosAoCubo(sxf, syf)
         self.malha = Malha(
             self.dx,
             self.dy,
@@ -76,10 +79,7 @@ class Page1Vara(QWidget):
                     self.vara_e_y,
                     self.raio_vara,
                     self.comprimento_vara,
-                    self.max_div,
-                    self.min_div,
-                    self.camadas_deformadas,
-                    self.ballooning,
+                    automatico=True,
                 )
             )
             self.cubos_normais = normais
@@ -172,11 +172,12 @@ class Page1Vara(QWidget):
 
         scroll_layout.addWidget(section_mesh)
 
-        scroll_layout.addWidget(self.createInputInt("Div-x", 1, 20, self.dx,self.updateDx))
-
-        scroll_layout.addWidget(self.createInputInt("Div-y", 1, 20, self.dy, self.updateDy))
-
-        scroll_layout.addWidget(self.createInputInt("Div-z", 1, 20, self.dz, self.updateDz))
+        div_x_widget = self.createInputInt("Div-x", 1, 20, self.dx,self.updateDx)
+        div_y_widget = self.createInputInt("Div-y", 1, 20, self.dy, self.updateDy)
+        div_z_widget = self.createInputInt("Div-z", 1, 20, self.dz, self.updateDz)
+        scroll_layout.addWidget(div_x_widget)
+        scroll_layout.addWidget(div_y_widget)
+        scroll_layout.addWidget(div_z_widget)
 
 
 
@@ -226,8 +227,15 @@ class Page1Vara(QWidget):
         self.vara_y_spin = self.createLabeledIntegerInput("Eixo Y", 0, self.dy - 1, self.vara_e_y, self.updateVara_e_y)
         vara_config_layout.addWidget(self.vara_x_spin)
         vara_config_layout.addWidget(self.vara_y_spin)
-        vara_config_layout.addWidget(self.createPreciseFloatInput("Raio", 0.00001, (min(self.dx/self.sx,self.dy/self.sy)/2)-0.00001, self.raio_vara, self.updateRaio, 5))
-        self.comprimento_input = self.createPreciseFloatInput("Comprimento", 0.1, self.sz, self.comprimento_vara, self.updateComprimento, 2)
+        self.raio_input = self.createPreciseFloatInput(
+            "Raio", 0.00001, self._raioMaximo(self.sx, self.sy),
+            self.raio_vara, self.updateRaio, 5,
+        )
+        vara_config_layout.addWidget(self.raio_input)
+        self.comprimento_input = self.createPreciseFloatInput(
+            "Comprimento", 0.1, self.sz, self.comprimento_vara,
+            self.updateComprimento, 2,
+        )
         vara_config_layout.addWidget(self.comprimento_input)
         vara_config_layout.addWidget(self.createLabeledIntegerInput("Camadas deformadas", 1, 20, self.camadas_deformadas, self.updateCamadas))
         self.max_div_input = self.createLabeledIntegerInput("Máximo de divisões", self.min_div, 20, self.max_div, self.updateMaxDiv)
@@ -235,6 +243,10 @@ class Page1Vara(QWidget):
         vara_config_layout.addWidget(self.max_div_input)
         vara_config_layout.addWidget(self.min_div_input)
         vara_config_layout.addWidget(self.createPreciseFloatInput("Razão ballooning", 1.0, 10.0, self.ballooning, self.updateBallooning, 2))
+        for indice in (5, 6, 7, 8):
+            item = vara_config_layout.itemAt(indice)
+            if item is not None and item.widget() is not None:
+                item.widget().setVisible(False)
         self.vara_config.setVisible(False)
         scroll_layout.addWidget(self.vara_config)
 
@@ -278,6 +290,7 @@ class Page1Vara(QWidget):
         row_layout.addWidget(btn_voltar)
         row_layout.addWidget(btn_Exportar)
         footer_layout.addWidget(row4)
+
 
         scroll_area.setStyleSheet("""
             QScrollArea {
@@ -376,6 +389,49 @@ class Page1Vara(QWidget):
         """)
 
         return button
+
+    def _raioMaximo(self, sxf, syf):
+        """Maior raio que cabe no cubo que recebe a vara."""
+        return max(0.00001, min(sxf / self.dx, syf / self.dy) / 2 - 0.00001)
+
+    def _ajustarRaiosAoCubo(self, sxf, syf):
+        """Atualiza e limita os raios quando a geometria da malha muda."""
+        raio_maximo = self._raioMaximo(sxf, syf)
+        self.raio_vara = min(self.raio_vara, raio_maximo)
+
+        for nome_valor, nome_widget in (
+            ("raio_vara", "raio_input"),
+            ("raio_vara_b", "raio_b_input"),
+        ):
+            if not hasattr(self, nome_valor):
+                continue
+            valor = min(getattr(self, nome_valor), raio_maximo)
+            setattr(self, nome_valor, valor)
+            widget = getattr(self, nome_widget, None)
+            if widget is not None:
+                widget.spin_box.blockSignals(True)
+                widget.spin_box.setMaximum(raio_maximo)
+                widget.spin_box.setValue(valor)
+                widget.spin_box.blockSignals(False)
+
+    def guardarPrintMalha(self):
+        """Guarda a vista atual do PyVista como PNG."""
+        pasta = Path(__file__).resolve().parents[1] / "output" / "Print"
+        pasta.mkdir(parents=True, exist_ok=True)
+        data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
+        caminho = pasta / f"malha-{data_hora}.png"
+
+        try:
+            self.plotter.screenshot(str(caminho))
+        except Exception as erro:
+            QMessageBox.critical(self, "Erro ao guardar imagem", str(erro))
+            return
+
+        QMessageBox.information(
+            self,
+            "Imagem guardada",
+            f"A vista atual da malha foi guardada em:\n{caminho}",
+        )
 
     def createInputInt(self, text, min_value, max_value, value, function):
         row = QWidget()
@@ -874,15 +930,35 @@ class Page1Vara(QWidget):
         self.plotter.render()
     def export(self):
         vara_b_ativa = getattr(self, "vara_b_ativa", False)
-        elementos,pontos=self.malha.clean(self.malha.getCubesList(),self.malha.getPointsList())
+        tetraedros, pontos = self.malha.clean(
+            self.malha.getCubesList(),
+            self.malha.getPointsList(),
+        )
+
         if self.vara_ativa or vara_b_ativa:
             vetor = self.malha.gerarVetordaVara(pontos)
         else:
             vetor = self.malha.getVetorList()
+        elementos=self.malha.getCubesList()
+        minimos = np.min(
+            pontos[tetraedros[:, 1:5], 2],
+            axis=1,
+        )
+        export_tetra = np.empty((len(tetraedros), 5), dtype=int)
+        for i in range(len(tetraedros)):
+            export_tetra[i, 0] = tetraedros[i][1]
+            export_tetra[i, 1] = tetraedros[i][2]
+            export_tetra[i, 2] = tetraedros[i][3]
+            export_tetra[i, 3] = tetraedros[i][4]
+            if self.sz >= 4:
+                if minimos[i] >= self.sz - 4:
+                    export_tetra[i, 4] = 0
+                else:
+                    export_tetra[i, 4] = 1
+            else:
+                export_tetra[i, 4] = 0
 
-
-
-        exp=ex(elementos, pontos, vetor, v=1000000)
+        exp=ex(export_tetra, pontos, vetor, v=1000000)
 
         if self.vara_ativa and vara_b_ativa:
             tipo_malha = "2Varas"
@@ -892,7 +968,11 @@ class Page1Vara(QWidget):
             tipo_malha = "Normal"
 
         data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dados = f"Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})-{tipo_malha}-{data_hora}"
+        dados = (
+            f"Div({self.malha.dx},{self.malha.dy},{self.malha.dz})"
+            f"-Size({self.malha.sx},{self.malha.sy},{self.malha.sz})"
+            f"-{tipo_malha}-{data_hora}"
+        )
         name_e = f"elementos-{dados}"
         name_p = f"pontos-{dados}"
         name_v = f"vetor-{dados}"

@@ -3,3 +3,16 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+output/*
+!output/export.py
+!output/downloads/
+output/downloads/*
+!output/downloads/.gitkeep
+
+tmp/*
+
+tests/tempCubeTetraDecomposition.py
+tests/tempPlacaCondensada.py
+tests/tempQualidadeGeometrias.py
+tests/tempTetraedroInterativo.py

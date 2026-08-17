@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Malha:
 
     def __init__(self, dx, dy, dz,sx=None,sy=None,sz=None):
@@ -263,19 +264,123 @@ class Malha:
     # =======================================================================
     # ======================Adição de Pontos=================================
     # =======================================================================
-    def adicionarCoordenadaObrigatoria(self,coordenadas, valor):
-        """Garante que um valor existe num eixo ordenado.
+    """
+        def adicionarCoordenadaObrigatoria(self,coordenadas, valor):
+        ""Garante que um valor existe num eixo ordenado.
 
         Args: coordenadas: coordenadas existentes; valor: coordenada obrigatoria.
         Returns: Array ordenado contendo o valor.
-        """
+        ""
         coordenadas = list(coordenadas)#tranforma o array cordenadas em uma lista
 
-        if not any(np.isclose(coordenada, valor) for coordenada in coordenadas):#vai verificar se não existe nenhuma cordenada com esse valor para poder adicionar caso não exista
-            coordenadas.append(valor)
+        
 
         coordenadas = sorted(coordenadas)  # ordena a nova cordenada
         return np.asarray(coordenadas, dtype=float)
+    """
+
+
+    def adicionarCoordenadaObrigatoria(
+            self,
+            coordenadas,
+            valor,
+            fator_proximidade=0.25,
+    ):
+        novo_z=valor
+        coordenadas = np.asarray(
+            coordenadas,
+            dtype=float,
+        ).copy()
+
+        if np.any(np.isclose(coordenadas, novo_z)):
+            return coordenadas
+
+        posicao = np.searchsorted(
+            coordenadas,
+            novo_z,
+        )
+
+        if 0 < posicao < len(coordenadas):
+            z_anterior = coordenadas[posicao - 1]
+            z_seguinte = coordenadas[posicao]
+
+            espacamento_local = z_seguinte - z_anterior
+            distancia_minima = (
+                    espacamento_local
+                    * fator_proximidade
+            )
+
+            distancias = np.abs(
+                coordenadas - novo_z
+            )
+
+            demasiado_proximos = (
+                    distancias < distancia_minima
+            )
+
+            if np.any(demasiado_proximos):
+                coordenadas[demasiado_proximos] = novo_z
+                return np.unique(
+                    np.sort(coordenadas)
+                )
+
+        coordenadas = np.append(
+            coordenadas,
+            novo_z,
+        )
+
+        return np.unique(
+            np.sort(coordenadas)
+        )
+
+    def substituirCoordenadasNaVara(
+            self, coordenadas, z_inicio, z_fim, quantidade_intervalos):
+        """Substitui os níveis interiores da vara por intervalos Z uniformes."""
+        coordenadas = np.asarray(coordenadas, dtype=float)
+        fora_da_vara = coordenadas[
+            (coordenadas < z_inicio - 1e-12)
+            | (coordenadas > z_fim + 1e-12)
+        ]
+        coordenadas_vara = np.linspace(
+            z_inicio,
+            z_fim,
+            int(quantidade_intervalos) + 1,
+        )
+        return np.unique(np.concatenate((fora_da_vara, coordenadas_vara)))
+
+    def calcularConfiguracaoAutomaticaVara(
+            self, cubo_vara_x, cubo_vara_y, raio, comprimento):
+        """Calcula o refinamento da vara a partir do raio e comprimento."""
+        if raio <= 0:
+            raise ValueError("O raio da vara tem de ser positivo.")
+        if comprimento <= 0:
+            raise ValueError("O comprimento da vara tem de ser positivo.")
+
+        tamanho_cubo_x = self.sx / self.dx
+        tamanho_cubo_y = self.sy / self.dy
+        distancia_radial = min(tamanho_cubo_x, tamanho_cubo_y) / 2 - raio
+        if distancia_radial <= 0:
+            raise ValueError("A vara nao cabe no cubo selecionado.")
+
+        ballooning = 1.55
+        primeira_camada_desejada = 0.6 * raio
+        camadas_radiais = int(np.ceil(
+            np.log1p(
+                distancia_radial
+                * (ballooning - 1)
+                / primeira_camada_desejada
+            )
+            / np.log(ballooning)
+        ))
+
+        return {
+            "divisoes_xy": 8,
+            "divisoes_contorno": 8,
+            "divisoes_z_vara": max(8, int(np.ceil(3 * comprimento))),
+            "camadas_radiais": max(1, camadas_radiais),
+            "min_div": 1,
+            "ballooning": ballooning,
+        }
 
     def adicionarPonto(self,pontos, mapa_pontos, coordenadas):
         """Adiciona um ponto apenas quando ainda nao existe.
@@ -297,6 +402,7 @@ class Malha:
 
         Args: Nao recebe parametros alem da instancia.
         Returns: Array (n, 9), com 8 seguido dos oito indices de cada hexaedro.
+        E os cubos são criados pela ordem natural
         """
 
         cube_list = np.empty((self.dx * self.dy * self.dz, 9), dtype=int)
@@ -316,16 +422,13 @@ class Malha:
             x = start_points[e][0]
             y = start_points[e][1]
             z = start_points[e][2]
-            cube_list[e][0] = 8
-            cube_list[e][1] = (z + y * (self.dz + 1) + x * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][2] = (z + y * (self.dz + 1) + (x + 1) * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][3] = ((z + 1) + y * (self.dz + 1) + (x + 1) * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][4] = ((z + 1) + y * (self.dz + 1) + x * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][5] = (z + (y + 1) * (self.dz + 1) + x * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][6] = (z + (y + 1) * (self.dz + 1) + (x + 1) * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][7] = ((z + 1) + (y + 1) * (self.dz + 1) + (x + 1) * (self.dz + 1) * (self.dy + 1))
-            cube_list[e][8] = ((z + 1) + (y + 1) * (self.dz + 1) + x * (self.dz + 1) * (self.dy + 1))
-
+            cube_list[e] = self.gerarCubo(
+                x,
+                y,
+                z,
+                self.dy + 1,
+                self.dz + 1,
+            )
         #retorna a lista com os respectivos cubos
         return cube_list
 
@@ -382,16 +485,18 @@ class Malha:
 
 
     # Este metodo recebe ids_contornos; nao recebe pontos, mapa e coordenadas.
-    def gerarCubosDaVara(self,ids_contornos, camadas_deformadas):
+    def gerarCubosDaVara(self,ids_contornos, camadas_deformadas, pontos):
         """Liga contornos sucessivos para formar hexaedros deformados.
 
         Args: ids_contornos: indices por nivel, camada e lado;
             camadas_deformadas: numero de intervalos radiais.
+            pontos: coordenadas usadas para orientar p0...p7 como nos cubos normais.
         Returns: Lista de hexaedros deformados.
         """
         cubos_deformados = []
         quantidade_niveis_z = ids_contornos.shape[0]
         quantidade_lados = ids_contornos.shape[2]
+        pontos = np.asarray(pontos, dtype=float)
 
         for iz in range(quantidade_niveis_z - 1):
             for camada in range(camadas_deformadas):
@@ -400,16 +505,45 @@ class Malha:
                 for i in range(quantidade_lados):
                     proximo_i = (i + 1) % quantidade_lados
 
+                    # Usa o contorno quadrado exterior para descobrir a direcao
+                    # deste lado sem depender da posicao i no array.
+                    limite_atual = ids_contornos[iz, camadas_deformadas, i]
+                    limite_seguinte = ids_contornos[iz, camadas_deformadas, proximo_i]
+                    deslocamento = pontos[limite_seguinte] - pontos[limite_atual]
+
+                    lado_horizontal = abs(deslocamento[0]) > abs(deslocamento[1])
+                    sentido_positivo = (
+                        deslocamento[0] > 0
+                        if lado_horizontal
+                        else deslocamento[1] > 0
+                    )
+
+                    # Inferior e direito ja seguem a orientacao do cubo normal.
+                    # Superior e esquerdo percorrem o contorno no sentido oposto.
+                    if sentido_positivo:
+                        primeiro = i
+                        segundo = proximo_i
+                    else:
+                        primeiro = proximo_i
+                        segundo = i
+
+                    ordem_baixo = [
+                        ids_contornos[iz, camada, primeiro],
+                        ids_contornos[iz, proxima_camada, primeiro],
+                        ids_contornos[iz, proxima_camada, segundo],
+                        ids_contornos[iz, camada, segundo],
+                    ]
+                    ordem_cima = [
+                        ids_contornos[iz + 1, camada, primeiro],
+                        ids_contornos[iz + 1, proxima_camada, primeiro],
+                        ids_contornos[iz + 1, proxima_camada, segundo],
+                        ids_contornos[iz + 1, camada, segundo],
+                    ]
+
                     cubos_deformados.append([
                         8,
-                        ids_contornos[iz, camada, i],
-                        ids_contornos[iz, proxima_camada, i],
-                        ids_contornos[iz, proxima_camada, proximo_i],
-                        ids_contornos[iz, camada, proximo_i],
-                        ids_contornos[iz + 1, camada, i],
-                        ids_contornos[iz + 1, proxima_camada, i],
-                        ids_contornos[iz + 1, proxima_camada, proximo_i],
-                        ids_contornos[iz + 1, camada, proximo_i],
+                        *ordem_baixo,
+                        *ordem_cima,
                     ])
 
         return cubos_deformados
@@ -595,6 +729,7 @@ class Malha:
             self,
             cubo_varaA_X, cubo_varaA_Y, rA, cA, max_divA, min_divA, camadasA, ballooningA,
             cubo_varaB_X, cubo_varaB_Y, rB, cB, max_divB, min_divB, camadasB, ballooningB,
+            *, automatico=False,
     ):
         """Gera uma malha com duas varas de configuracoes diferentes."""
         origem = (0.0, 0.0, 0.0)
@@ -617,6 +752,24 @@ class Malha:
             {"centro": centro_vara_a, "raio": rA, "z_inicio": z_inicio_A, "z_fim": z_fim_A},
             {"centro": centro_vara_b, "raio": rB, "z_inicio": z_inicio_B, "z_fim": z_fim_B},
         ]
+
+        configuracao_a = None
+        configuracao_b = None
+        if automatico:
+            configuracao_a = self.calcularConfiguracaoAutomaticaVara(
+                cubo_varaA_X, cubo_varaA_Y, rA, cA,
+            )
+            configuracao_b = self.calcularConfiguracaoAutomaticaVara(
+                cubo_varaB_X, cubo_varaB_Y, rB, cB,
+            )
+            max_divA = configuracao_a["divisoes_xy"]
+            min_divA = configuracao_a["min_div"]
+            camadasA = configuracao_a["camadas_radiais"]
+            ballooningA = configuracao_a["ballooning"]
+            max_divB = configuracao_b["divisoes_xy"]
+            min_divB = configuracao_b["min_div"]
+            camadasB = configuracao_b["camadas_radiais"]
+            ballooningB = configuracao_b["ballooning"]
 
         self.balloning = ballooningA
         div_x_A = self.calcularDivisoesPorEixo(self.dx, cubo_varaA_X, max_divA, min_divA)
@@ -643,6 +796,25 @@ class Malha:
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_A)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_B)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, self.sz)
+        if automatico:
+            inicio_mais_baixo = min(z_inicio_A, z_inicio_B)
+            fora_das_varas = z_coords[
+                (z_coords < inicio_mais_baixo - 1e-12)
+                | (z_coords > self.sz + 1e-12)
+            ]
+            z_coords = np.unique(np.concatenate((
+                fora_das_varas,
+                np.linspace(
+                    z_inicio_A,
+                    z_fim_A,
+                    configuracao_a["divisoes_z_vara"] + 1,
+                ),
+                np.linspace(
+                    z_inicio_B,
+                    z_fim_B,
+                    configuracao_b["divisoes_z_vara"] + 1,
+                ),
+            )))
 
         z_coords_A = z_coords[(z_coords >= z_inicio_A - 1e-12) & (z_coords <= z_fim_A + 1e-12)]
         z_coords_B = z_coords[(z_coords >= z_inicio_B - 1e-12) & (z_coords <= z_fim_B + 1e-12)]
@@ -662,14 +834,18 @@ class Malha:
             pontos, mapa_pontos, x_coords, y_coords, z_coords_A,
             intervalos_x[cubo_varaA_X],
             intervalos_y[cubo_varaA_Y],
-            centro_vara_a, rA, max_divA, camadasA, ballooningA,
-        ), camadasA)
+            centro_vara_a, rA,
+            configuracao_a["divisoes_contorno"] if automatico else max_divA,
+            camadasA, ballooningA,
+        ), camadasA, pontos)
         cubos_deformadosB = self.gerarCubosDaVara(self.gerarPontosDoCuboDaVara(
             pontos, mapa_pontos, x_coords, y_coords, z_coords_B,
             intervalos_x[cubo_varaB_X],
             intervalos_y[cubo_varaB_Y],
-            centro_vara_b, rB, max_divB, camadasB, ballooningB,
-        ), camadasB)
+            centro_vara_b, rB,
+            configuracao_b["divisoes_contorno"] if automatico else max_divB,
+            camadasB, ballooningB,
+        ), camadasB, pontos)
 
         pontos_totais = np.asarray(pontos, dtype=float)
         cubos_totais = np.asarray(
@@ -680,7 +856,12 @@ class Malha:
         self.final_cube_list = cubos_totais
         self.final_tetraedro_list = self.divCubesInTetraedrosF(cubos_totais, pontos_totais)
         return pontos_totais, cubos_totais, cubos_normais, cubos_deformadosA, cubos_deformadosB
-    def gerarMalha1Vara(self,cubo_vara_X,cubo_vara_Y,r,c,max_div,min_div,camadas_deformadas,balloning):
+    def gerarMalha1Vara(
+            self, cubo_vara_X, cubo_vara_Y, r, c,
+            max_div=None, min_div=1, camadas_deformadas=None, balloning=1.55,
+            *, divisoes_xy=None, divisoes_contorno=None,
+            divisoes_z_vara=None, automatico=False,
+            estrato=None):
         """Gera uma malha refinada em torno de uma vara.
 
         Args: cubo_vara_X/Y: cubo da vara; r: raio; c: comprimento;
@@ -688,6 +869,26 @@ class Malha:
             camadas radiais; balloning: razao de crescimento.
         Returns: pontos, todos os cubos, cubos normais e cubos deformados.
         """
+        if automatico:
+            configuracao = self.calcularConfiguracaoAutomaticaVara(
+                cubo_vara_X, cubo_vara_Y, r, c,
+            )
+            divisoes_xy = configuracao["divisoes_xy"]
+            divisoes_contorno = configuracao["divisoes_contorno"]
+            divisoes_z_vara = configuracao["divisoes_z_vara"]
+            camadas_deformadas = configuracao["camadas_radiais"]
+            min_div = configuracao["min_div"]
+            balloning = configuracao["ballooning"]
+
+        if max_div is None:
+            max_div = 8
+        if divisoes_xy is None:
+            divisoes_xy = max_div
+        if divisoes_contorno is None:
+            divisoes_contorno = max_div
+        if camadas_deformadas is None:
+            camadas_deformadas = 14
+
         self.balloning = balloning
         cubo_deformado=(cubo_vara_X,cubo_vara_Y)
         origem = (0.0, 0.0, 0.0)
@@ -706,13 +907,13 @@ class Malha:
         divisoes_x_por_cubo = self.calcularDivisoesPorEixo(
             self.dx,
             cubo_vara_X,
-            max_div,
+            divisoes_xy,
             min_div,
         )
         divisoes_y_por_cubo = self.calcularDivisoesPorEixo(
             self.dy,
             cubo_vara_Y,
-            max_div,
+            divisoes_xy,
             min_div,
         )
         divisoes_z_por_cubo_lista = self.calcularDivisoesZComVara(
@@ -720,7 +921,7 @@ class Malha:
             tamanho_cubo_z,
             z_inicio_vara,
             z_fim_vara,
-            max_div,
+            divisoes_xy,
             min_div,self.balloning
         )
         x_coords, intervalos_x = self.gerarCoordenadasPorEixo(self.dx, tamanho_cubo_x, divisoes_x_por_cubo, origem[0])
@@ -729,6 +930,22 @@ class Malha:
                                                          origem[2])
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_vara)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_fim_vara)
+        if estrato is not None:
+            for i in estrato:
+                if i>= self.sz:
+                    z_coords = self.adicionarCoordenadaObrigatoria(
+                        z_coords,
+                        self.sz - i,
+                    )
+
+
+        if divisoes_z_vara is not None:
+            z_coords = self.substituirCoordenadasNaVara(
+                z_coords,
+                z_inicio_vara,
+                z_fim_vara,
+                divisoes_z_vara,
+            )
         z_coords_vara = z_coords[
             (z_coords >= z_inicio_vara - 1e-12)
             & (z_coords <= z_fim_vara + 1e-12)
@@ -760,9 +977,9 @@ class Malha:
             intervalos_y[cubo_vara_Y],
             centro_vara,
             r,
-            max_div,
+            divisoes_contorno,
             camadas_deformadas,
-            balloning ),camadas_deformadas
+            balloning ),camadas_deformadas, pontos
         )
         pontos_totais = np.asarray(pontos, dtype=float)
         cubos_totais = np.asarray(cubos_normais + cubos_deformados, dtype=int)
@@ -892,28 +1109,28 @@ class Malha:
 
 
 
-    def isFronteiraSuperior(self,i):
+    def isFronteiraSuperior(self,i,pontos):
         """Indica se o ponto i pertence ao topo. Args: i: indice. Returns: bool."""
-        if  self.points_list[i][2] == self.sz:
+        if  pontos[i][2] == self.sz:
             return True
         return False
-    def isFronteiraInferior(self,i):
+    def isFronteiraInferior(self,i,pontos):
         """Indica se o ponto i pertence a base. Args: i: indice. Returns: bool."""
-        if  self.points_list[i][2] == 0:
+        if  pontos[i][2] == 0:
             return True
         return False
 
-    def isFronteiratLateral(self,i):
+    def isFronteiratLateral(self,i,pontos):
         """Indica se o ponto i pertence a uma lateral. Args: i: indice. Returns: bool."""
-        if ( self.points_list[i][2] != self.sz and  self.points_list[i][2] != 0) and (
-                ( self.points_list[i][1] == self.sy or  self.points_list[i][1] == 0) or (
-                 self.points_list[i][0] == self.sx or  self.points_list[i][0] == 0)):
+        if ( pontos[i][2] != self.sz and  pontos[i][2] != 0) and (
+                ( pontos[i][1] == self.sy or  pontos[i][1] == 0) or (
+                 pontos[i][0] == self.sx or  pontos[i][0] == 0)):
             return True
         return False
 
-    def isPontoLivre(self,i):
+    def isPontoLivre(self,i,pontos):
         """Indica se o ponto i nao pertence a fronteira. Args: i: indice. Returns: bool."""
-        if not self.isFronteiratLateral(i) and not self.isFronteiraInferior(i) and not self.isFronteiraSuperior(i):
+        if not self.isFronteiratLateral(i,pontos) and not self.isFronteiraInferior(i,pontos) and not self.isFronteiraSuperior(i,pontos):
             return True
         return False
     def isFronteiraNaVara(self,i,pontos):
@@ -935,6 +1152,7 @@ class Malha:
     def isLongeDaVara(self, i,pontos, distancia_minima=7.6):
         """Retorna True se o ponto estiver longe de todas as varas."""
         x, y, z = pontos[i]
+
 
         for vara in self.varas_ativas:
             centro_x, centro_y = vara["centro"]
@@ -972,11 +1190,11 @@ class Malha:
 
         for i in range(len(pontos)):
 
-            if  self.isFronteiraSuperior(i):
+            if  self.isFronteiraSuperior(i,pontos):
                 front_s += 1
-            elif self.isFronteiraInferior(i):
+            elif self.isFronteiraInferior(i,pontos):
                 front_i += 1
-            elif self.isFronteiratLateral(i):
+            elif self.isFronteiratLateral(i,pontos):
                 front_lat += 1
             else:
                 front_livre +=1
@@ -996,7 +1214,7 @@ class Malha:
 
             if  self.isFronteiraNaVara(i,pontos):
                 front_V += 1
-            elif self.isLongeDaVara(i,pontos):
+            elif self.isFronteiratLateral(i,pontos) or self.isFronteiraInferior(i,pontos):
                 front_L += 1
             else:
                 front_livre +=1
@@ -1019,7 +1237,7 @@ class Malha:
         novoid = 0
 
         for i in range(len(pontos)):
-            if not self.isFronteiraNaVara(i,pontos) and not self.isLongeDaVara(i,pontos):
+            if not self.isFronteiraNaVara(i,pontos) and not  self.isFronteiratLateral(i,pontos) and not self.isFronteiraInferior(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
@@ -1030,7 +1248,8 @@ class Malha:
                     mapa[i] = novoid
                     novoid += 1
         for i in range(len(pontos)):
-            if self.isLongeDaVara(i,pontos):
+
+            if (self.isFronteiratLateral(i,pontos) or self.isFronteiraInferior(i,pontos)) and not self.isFronteiraNaVara(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
@@ -1067,22 +1286,22 @@ class Malha:
         novoid = 0
 
         for i in range(len(pontos)):
-            if self.isPontoLivre(i):
+            if self.isPontoLivre(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
         for i in range(len(pontos)):
-            if self.isFronteiratLateral(i):
+            if self.isFronteiratLateral(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
         for i in range(len(pontos)):
-            if self.isFronteiraSuperior(i):
+            if self.isFronteiraSuperior(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
         for i in range(len(pontos)):
-            if self.isFronteiraInferior(i):
+            if self.isFronteiraInferior(i,pontos):
                     newpoints[novoid] = pontos[i]
                     mapa[i] = novoid
                     novoid += 1
@@ -1161,6 +1380,54 @@ class Malha:
 
         return tetraedros, pontos
 
+    def calcularRelacaoBaseAlturaTetraedros(self, tetraedros, pontos):
+        """Calcula a pior relação entre dimensão da base e altura de cada tetraedro."""
+        tetraedros = np.asarray(tetraedros, dtype=int)
+        pontos = np.asarray(pontos, dtype=float)
+        ids = tetraedros[:, 1:5] if tetraedros.shape[1] == 5 else tetraedros
+        coordenadas = pontos[ids]
+        relacoes = np.ones(len(ids), dtype=float)
+        faces = (
+            (1, 2, 3, 0),
+            (0, 2, 3, 1),
+            (0, 1, 3, 2),
+            (0, 1, 2, 3),
+        )
+
+        for a, b, c, oposto in faces:
+            pa = coordenadas[:, a]
+            pb = coordenadas[:, b]
+            pc = coordenadas[:, c]
+            po = coordenadas[:, oposto]
+
+            normal = np.cross(pb - pa, pc - pa)
+            dobro_area = np.linalg.norm(normal, axis=1)
+            arestas_base = np.column_stack((
+                np.linalg.norm(pb - pa, axis=1),
+                np.linalg.norm(pc - pb, axis=1),
+                np.linalg.norm(pa - pc, axis=1),
+            ))
+            dimensao_base = np.max(arestas_base, axis=1)
+            altura = np.abs(np.einsum("ij,ij->i", po - pa, normal))
+            altura = np.divide(
+                altura,
+                dobro_area,
+                out=np.zeros_like(altura),
+                where=dobro_area > 0,
+            )
+
+            menor = np.minimum(dimensao_base, altura)
+            maior = np.maximum(dimensao_base, altura)
+            relacao_face = np.divide(
+                maior,
+                menor,
+                out=np.full_like(maior, np.inf),
+                where=menor > 0,
+            )
+            relacoes = np.maximum(relacoes, relacao_face)
+
+        return relacoes
+
 #Getters e Setters
 
     def getCubesList(self):
@@ -1172,7 +1439,9 @@ class Malha:
     def getTetraedrosList(self):
         """Devolve a malha tetraedrica. Args: nenhum. Returns: array de tetraedros."""
         return self.final_tetraedro_list
+
+
+
     def getVetorList(self):
         """Devolve as contagens de fronteira. Args: nenhum. Returns: vetor de contagens."""
         return self.final_vector
-

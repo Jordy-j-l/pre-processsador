@@ -58,8 +58,11 @@ class Page2Varas(Page1Vara):
             "Eixo Y", 0, self.dy - 1, self.vara_b_y, self.updateVaraBY)
         config.addWidget(self.vara_b_x_input)
         config.addWidget(self.vara_b_y_input)
-        config.addWidget(self.createPreciseFloatInput(
-            "Raio", 0.00001, (min(self.dx/self.sx,self.dy/self.sy)/2)-0.00001, self.raio_vara_b, self.updateRaioB, 5))
+        self.raio_b_input = self.createPreciseFloatInput(
+            "Raio", 0.00001, self._raioMaximo(self.sx, self.sy),
+            self.raio_vara_b, self.updateRaioB, 5,
+        )
+        config.addWidget(self.raio_b_input)
         self.comprimento_b_input = self.createPreciseFloatInput(
             "Comprimento", 0.1, self.sz, self.comprimento_vara_b,
             self.updateComprimentoB, 2)
@@ -75,6 +78,10 @@ class Page2Varas(Page1Vara):
         config.addWidget(self.createPreciseFloatInput(
             "Razão ballooning", 1.0, 10.0, self.ballooning_b,
             self.updateBallooningB, 2))
+        for indice in (5, 6, 7, 8):
+            item = config.itemAt(indice)
+            if item is not None and item.widget() is not None:
+                item.widget().setVisible(False)
         self.vara_b_config.setVisible(False)
         layout.addWidget(self.vara_b_config)
         parent_layout.insertWidget(indice, bloco)
@@ -92,6 +99,7 @@ class Page2Varas(Page1Vara):
                     ballooning=self.ballooning_b)
 
     def updateMalha(self, sxf, syf, szf):
+        self._ajustarRaiosAoCubo(sxf, syf)
         self.malha = Malha(self.dx, self.dy, self.dz, sxf, syf, szf)
         self.cubos_normais = None
         self.cubos_deformados = None
@@ -115,6 +123,7 @@ class Page2Varas(Page1Vara):
                 pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
                     vara_a["x"], vara_a["y"], raio, comprimento,
                     max_div, min_div, camadas, ballooning,
+                    automatico=True,
                 )
             else:
                 pontos, cubos, normais, deform_a, deform_b = self.malha.gerarMalha2Vara(
@@ -124,18 +133,21 @@ class Page2Varas(Page1Vara):
                     vara_b["x"], vara_b["y"], vara_b["raio"],
                     vara_b["comprimento"], vara_b["max_div"], vara_b["min_div"],
                     vara_b["camadas"], vara_b["ballooning"],
+                    automatico=True,
                 )
                 deformados = list(deform_a) + list(deform_b)
         elif self.vara_ativa:
             cfg = self.configuracaoA()
             pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
                 cfg["x"], cfg["y"], cfg["raio"], cfg["comprimento"],
-                cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"])
+                cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"],
+                automatico=True)
         elif self.vara_b_ativa:
             cfg = self.configuracaoB()
             pontos, cubos, normais, deformados = self.malha.gerarMalha1Vara(
                 cfg["x"], cfg["y"], cfg["raio"], cfg["comprimento"],
-                cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"])
+                cfg["max_div"], cfg["min_div"], cfg["camadas"], cfg["ballooning"],
+                automatico=True)
         else:
             self.malha.gerarMalhaNormal()
             return
