@@ -861,7 +861,7 @@ class Malha:
             max_div=None, min_div=1, camadas_deformadas=None, balloning=1.55,
             *, divisoes_xy=None, divisoes_contorno=None,
             divisoes_z_vara=None, automatico=False,
-            estrato=None):
+            estrato=None,distVara=None):
         """Gera uma malha refinada em torno de uma vara.
 
         Args: cubo_vara_X/Y: cubo da vara; r: raio; c: comprimento;
