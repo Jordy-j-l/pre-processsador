@@ -729,8 +729,7 @@ class Malha:
             self,
             cubo_varaA_X, cubo_varaA_Y, rA, cA, max_divA, min_divA, camadasA, ballooningA,
             cubo_varaB_X, cubo_varaB_Y, rB, cB, max_divB, min_divB, camadasB, ballooningB,
-            *, automatico=False,
-    ):
+            *, automatico=False,estrato,distVara1=None,distVara2=None):
         """Gera uma malha com duas varas de configuracoes diferentes."""
         origem = (0.0, 0.0, 0.0)
         tamanho_cubo_x = self.sx / self.dx
@@ -796,6 +795,7 @@ class Malha:
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_A)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_B)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, self.sz)
+
         if automatico:
             inicio_mais_baixo = min(z_inicio_A, z_inicio_B)
             fora_das_varas = z_coords[
@@ -815,7 +815,20 @@ class Malha:
                     configuracao_b["divisoes_z_vara"] + 1,
                 ),
             )))
+        if estrato is not None:
+            for profundidade in estrato:
 
+                if profundidade < 0 or profundidade > self.sz:
+                    raise ValueError(
+                        f"O estrato {profundidade} está fora do domínio."
+                    )
+
+                z_estrato = self.sz - profundidade
+
+                z_coords = self.adicionarCoordenadaObrigatoria(
+                    z_coords,
+                    z_estrato,
+                )
         z_coords_A = z_coords[(z_coords >= z_inicio_A - 1e-12) & (z_coords <= z_fim_A + 1e-12)]
         z_coords_B = z_coords[(z_coords >= z_inicio_B - 1e-12) & (z_coords <= z_fim_B + 1e-12)]
 
@@ -930,13 +943,6 @@ class Malha:
                                                          origem[2])
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_inicio_vara)
         z_coords = self.adicionarCoordenadaObrigatoria(z_coords, z_fim_vara)
-        if estrato is not None:
-            for i in estrato:
-                if i>= self.sz:
-                    z_coords = self.adicionarCoordenadaObrigatoria(
-                        z_coords,
-                        self.sz - i,
-                    )
 
 
         if divisoes_z_vara is not None:
@@ -946,6 +952,20 @@ class Malha:
                 z_fim_vara,
                 divisoes_z_vara,
             )
+        if estrato is not None:
+            for profundidade in estrato:
+
+                if profundidade < 0 or profundidade > self.sz:
+                    raise ValueError(
+                        f"O estrato {profundidade} está fora do domínio."
+                    )
+
+                z_estrato = self.sz - profundidade
+
+                z_coords = self.adicionarCoordenadaObrigatoria(
+                    z_coords,
+                    z_estrato,
+                )
         z_coords_vara = z_coords[
             (z_coords >= z_inicio_vara - 1e-12)
             & (z_coords <= z_fim_vara + 1e-12)

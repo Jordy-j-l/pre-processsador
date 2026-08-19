@@ -45,17 +45,29 @@ class Page1Vara(QWidget):
         self.vara_ativa = False
         self.vara_construida = False
 
+        self.raio_vara = 0.00794
+        self.comprimento_vara = 1.0
+
+        # Configuração avançada
+        self.avancado_ativo = False
+
         self.vara_e_x = 0
         self.vara_e_y = 0
 
-        self.raio_vara = 0.00794
-        self.comprimento_vara = 1.0
+        self.max_div = None
+        self.min_div = 1
+        self.camadas_deformadas = None
+        self.ballooning = 1.55
+
+        self.divisoes_xy = None
+        self.divisoes_contorno = None
+        self.divisoes_z_vara = None
 
         self.estratos = []
         self.resistividades_estratos = []
         self.resistividade_spinboxes = []
         self.dist_fronteira = 0.0
-
+        self.potencial=1000000.0
         # Guarda os valores usados no último BUILD
         self.parametros_vara_construida = None
 
@@ -126,7 +138,6 @@ class Page1Vara(QWidget):
 
         self.updateViewer()
 
-
     def buildVara(self):
 
         if not self.vara_ativa:
@@ -137,10 +148,24 @@ class Page1Vara(QWidget):
         if estratos is None:
             return
 
+        if (
+                self.avancado_ativo
+                and self.max_div is not None
+                and self.max_div < self.min_div
+        ):
+            QMessageBox.warning(
+                self,
+                "Configuração inválida",
+                "Máx. divisões não pode ser inferior a Mín. divisões.",
+            )
+            return
+
         self.estratos = estratos
+
         self.resistividades_estratos = (
             self.obterResistividadesEstratos()
         )
+
         self.criarObjetoMalha()
 
         try:
@@ -151,7 +176,18 @@ class Page1Vara(QWidget):
                     self.vara_e_y,
                     self.raio_vara,
                     self.comprimento_vara,
-                    automatico=True,
+
+                    self.max_div,
+                    self.min_div,
+                    self.camadas_deformadas,
+                    self.ballooning,
+
+                    divisoes_xy=self.divisoes_xy,
+                    divisoes_contorno=self.divisoes_contorno,
+                    divisoes_z_vara=self.divisoes_z_vara,
+
+                    automatico=not self.avancado_ativo,
+
                     estrato=self.estratos,
                     distVara=self.dist_fronteira,
                 )
@@ -175,12 +211,30 @@ class Page1Vara(QWidget):
         self.parametros_vara_construida = {
             "x": self.vara_e_x,
             "y": self.vara_e_y,
+
             "raio": self.raio_vara,
             "comprimento": self.comprimento_vara,
+
+            "avancado": self.avancado_ativo,
+
+            "max_div": self.max_div,
+            "min_div": self.min_div,
+            "camadas_deformadas": self.camadas_deformadas,
+            "ballooning": self.ballooning,
+
+            "divisoes_xy": self.divisoes_xy,
+            "divisoes_contorno": self.divisoes_contorno,
+            "divisoes_z_vara": self.divisoes_z_vara,
+
             "estratos": self.estratos.copy(),
             "dist_fronteira": self.dist_fronteira,
         }
+        if not self.avancado_ativo:
+            self.vara_e_x, self.vara_e_y = (
+                self.calcularCuboAutomaticoVara()
+            )
 
+            self.avisarVaraNaoCentrada()
         self.updateViewer()
 
 
@@ -305,26 +359,26 @@ class Page1Vara(QWidget):
         section_size = QLabel("Dimensões Físicas")
         section_size.setObjectName("sectionTitle")
 
-        wsx = self.createInputFloat(
+        self.wsx = self.createInputFloat(
             "Size-x",
             0.1,
-            50,
+            100000,
             self.sx,
             self.updateSx,
         )
 
-        wsy = self.createInputFloat(
+        self.wsy = self.createInputFloat(
             "Size-y",
             0.1,
-            50,
+            100000,
             self.sy,
             self.updateSy,
         )
 
-        wsz = self.createInputFloat(
+        self.wsz = self.createInputFloat(
             "Size-z",
             0.1,
-            50,
+            100000,
             self.sz,
             self.updateSz,
         )
@@ -343,9 +397,9 @@ class Page1Vara(QWidget):
         self.fix_size.toggled.connect(
             lambda checked: self.updateFixSize(
                 checked,
-                wsx,
-                wsy,
-                wsz,
+                self.wsx,
+                self.wsy,
+                self.wsz,
             )
         )
 
@@ -353,9 +407,9 @@ class Page1Vara(QWidget):
 
         scroll_layout.addWidget(size_header)
 
-        scroll_layout.addWidget(wsx)
-        scroll_layout.addWidget(wsy)
-        scroll_layout.addWidget(wsz)
+        scroll_layout.addWidget(self.wsx)
+        scroll_layout.addWidget(self.wsy)
+        scroll_layout.addWidget(self.wsz)
 
         scroll_layout.addSpacing(15)
 
@@ -403,68 +457,245 @@ class Page1Vara(QWidget):
 
         vara_config_layout.setSpacing(10)
 
-        # Posição
-        vara_config_layout.addWidget(
-            QLabel("Posição da Vara")
-        )
-
-        self.vara_x_spin = self.createLabeledIntegerInput(
-            "Eixo X",
-            0,
-            self.dx - 1,
-            self.vara_e_x,
-            self.updateVaraX,
-        )
-
-        self.vara_y_spin = self.createLabeledIntegerInput(
-            "Eixo Y",
-            0,
-            self.dy - 1,
-            self.vara_e_y,
-            self.updateVaraY,
+        # Raio
+        self.raio_input = self.createPreciseFloatInput(
+            "Raio",
+            0.00001,
+            self._raioMaximo(
+                self.sx,
+                self.sy,
+            ),
+            self.raio_vara,
+            self.updateRaio,
+            5,
         )
 
         vara_config_layout.addWidget(
-            self.vara_x_spin
-        )
-
-        vara_config_layout.addWidget(
-            self.vara_y_spin
+            self.raio_input
         )
 
         # Comprimento
-        self.comprimento_input = (
-            self.createPreciseFloatInput(
-                "Comprimento",
-                0.1,
-                self.sz,
-                self.comprimento_vara,
-                self.updateComprimento,
-                2,
-            )
+        self.comprimento_input = self.createPreciseFloatInput(
+            "Comprimento",
+            0.1,
+            self.sz,
+            self.comprimento_vara,
+            self.updateComprimento,
+            2,
         )
 
         vara_config_layout.addWidget(
             self.comprimento_input
         )
 
-        # Raio
-        self.raio_input = (
-            self.createPreciseFloatInput(
-                "Raio",
-                0.00001,
-                self._raioMaximo(
-                    self.sx,
-                    self.sy,
-                ),
-                self.raio_vara,
-                self.updateRaio,
-                5,
-            )
+        # ======================================================
+        # AVANÇADO
+        # ======================================================
+
+        self.avancado_checkbox = QCheckBox(
+            "Avançado"
+        )
+
+        self.avancado_checkbox.setChecked(
+            False
+        )
+
+        self.avancado_checkbox.toggled.connect(
+            self.updateAvancado
         )
 
         vara_config_layout.addWidget(
-            self.raio_input
+            self.avancado_checkbox
+        )
+
+        self.avancado_container = QWidget()
+
+        avancado_layout = QVBoxLayout(
+            self.avancado_container
+        )
+
+        avancado_layout.setContentsMargins(
+            10,
+            5,
+            0,
+            5,
+        )
+
+        avancado_layout.setSpacing(10)
+
+        # Posição X
+        self.vara_x_spin = self.createAdvancedIntegerInput(
+            "Cubo Vara X",
+            0,
+            self.dx - 1,
+            self.vara_e_x,
+            self.updateVaraX,
+            (
+                "Índice do cubo no eixo X onde a vara será colocada. "
+                "O primeiro cubo tem índice 0."
+            ),
+        )
+
+        avancado_layout.addWidget(
+            self.vara_x_spin
+        )
+
+        # Posição Y
+        self.vara_y_spin = self.createAdvancedIntegerInput(
+            "Cubo Vara Y",
+            0,
+            self.dy - 1,
+            self.vara_e_y,
+            self.updateVaraY,
+            (
+                "Índice do cubo no eixo Y onde a vara será colocada. "
+                "Em conjunto com Cubo Vara X define o bloco da malha "
+                "que será deformado para receber a vara."
+            ),
+        )
+
+        avancado_layout.addWidget(
+            self.vara_y_spin
+        )
+
+        # Máximo de divisões
+        self.max_div_input = self.createAdvancedIntegerInput(
+            "Máx. divisões",
+            0,
+            100,
+            self.max_div,
+            self.updateMaxDiv,
+            (
+                "Define o limite máximo de divisões utilizado na "
+                "discretização da região da vara. "
+                "Auto deixa o gerador determinar este valor."
+            ),
+            allow_none=True,
+        )
+
+        avancado_layout.addWidget(
+            self.max_div_input
+        )
+
+        # Mínimo de divisões
+        self.min_div_input = self.createAdvancedIntegerInput(
+            "Mín. divisões",
+            1,
+            100,
+            self.min_div,
+            self.updateMinDiv,
+            (
+                "Define o número mínimo de divisões permitido durante "
+                "a discretização da região deformada da vara."
+            ),
+        )
+
+        avancado_layout.addWidget(
+            self.min_div_input
+        )
+
+        # Camadas deformadas
+        self.camadas_input = self.createAdvancedIntegerInput(
+            "Camadas deformadas",
+            0,
+            100,
+            self.camadas_deformadas,
+            self.updateCamadasDeformadas,
+            (
+                "Número de camadas criadas entre o contorno da vara "
+                "e o limite exterior da região deformada. "
+                "Auto deixa o gerador determinar este valor."
+            ),
+            allow_none=True,
+        )
+
+        avancado_layout.addWidget(
+            self.camadas_input
+        )
+
+        # Ballooning
+        self.ballooning_input = self.createAdvancedFloatInput(
+            "Ballooning",
+            1.0,
+            10.0,
+            self.ballooning,
+            self.updateBallooning,
+            2,
+            (
+                "Razão de crescimento entre camadas sucessivas da "
+                "região deformada. Valores maiores concentram elementos "
+                "mais pequenos junto à vara e aumentam progressivamente "
+                "o tamanho dos elementos ao afastar-se dela."
+            ),
+        )
+
+        avancado_layout.addWidget(
+            self.ballooning_input
+        )
+
+        # Divisões XY
+        self.divisoes_xy_input = self.createAdvancedIntegerInput(
+            "Divisões XY",
+            0,
+            1000,
+            self.divisoes_xy,
+            self.updateDivisoesXY,
+            (
+                "Força o número de divisões utilizado no plano XY "
+                "da região especial da vara. "
+                "Auto deixa o gerador calcular este valor."
+            ),
+            allow_none=True,
+        )
+
+        avancado_layout.addWidget(
+            self.divisoes_xy_input
+        )
+
+        # Divisões do contorno
+        self.divisoes_contorno_input = self.createAdvancedIntegerInput(
+            "Divisões contorno",
+            0,
+            1000,
+            self.divisoes_contorno,
+            self.updateDivisoesContorno,
+            (
+                "Define o número de divisões utilizadas para discretizar "
+                "o contorno circular da vara. Um valor maior produz mais "
+                "pontos ao redor da circunferência."
+            ),
+            allow_none=True,
+        )
+
+        avancado_layout.addWidget(
+            self.divisoes_contorno_input
+        )
+
+        # Divisões em Z
+        self.divisoes_z_vara_input = self.createAdvancedIntegerInput(
+            "Divisões Z Vara",
+            0,
+            1000,
+            self.divisoes_z_vara,
+            self.updateDivisoesZVara,
+            (
+                "Define o número de divisões ao longo do comprimento "
+                "da vara no eixo Z. Auto deixa o gerador determinar "
+                "a discretização vertical."
+            ),
+            allow_none=True,
+        )
+
+        avancado_layout.addWidget(
+            self.divisoes_z_vara_input
+        )
+
+        self.avancado_container.setVisible(
+            False
+        )
+
+        vara_config_layout.addWidget(
+            self.avancado_container
         )
 
 
@@ -526,7 +757,7 @@ class Page1Vara(QWidget):
         self.estratos_input.line_edit.textChanged.connect(
             self.atualizarResistividadesEstratos
         )
-
+        self.atualizarResistividadesEstratos()
         # Distância da vara à fronteira
         self.dist_fronteira_input = (
             self.createPreciseFloatInput(
@@ -541,6 +772,20 @@ class Page1Vara(QWidget):
 
         scroll_layout.addWidget(
             self.dist_fronteira_input
+        )
+
+        #potencial
+        self.potencial_input = self.createPropertyInput(
+            "Potencial V",
+            0.0,
+            1000000000.0,
+            self.potencial,
+            self.updatePotencial,
+            2,
+        )
+
+        scroll_layout.addWidget(
+            self.potencial_input
         )
         scroll_layout.addSpacing(15)
 
@@ -754,6 +999,230 @@ class Page1Vara(QWidget):
     # ==========================================================
     # COMPONENTES
     # ==========================================================
+
+    def avisarVaraNaoCentrada(self):
+
+        eixos = []
+
+        if self.dx % 2 == 0:
+            eixos.append("X")
+
+        if self.dy % 2 == 0:
+            eixos.append("Y")
+
+        if not eixos:
+            return
+
+        eixos_texto = " e ".join(eixos)
+
+        QMessageBox.warning(
+            self,
+            "Vara não exatamente centrada",
+            (
+                "A malha possui um número par de divisões em X e/ou Y.\n\n"
+                "A posição automática foi obtida por truncatura, pelo que "
+                "a vara poderá não ficar exatamente no centro do domínio "
+                "e as distâncias às fronteiras opostas poderão ser diferentes.\n\n"
+                "Verifique a posição da vara na visualização 3D antes de exportar."
+            ),
+        )
+
+    def createHelpLabel(
+            self,
+            tooltip,
+    ):
+        help_label = QLabel("?")
+
+        help_label.setAlignment(
+            Qt.AlignCenter
+        )
+
+        help_label.setFixedSize(
+            20,
+            20,
+        )
+
+        help_label.setToolTip(
+            tooltip
+        )
+
+        help_label.setStyleSheet("""
+            QLabel {
+                color: #93C5FD;
+                background-color: #1E293B;
+                border: 1px solid #3B82F6;
+                border-radius: 10px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+
+            QLabel:hover {
+                background-color: #3B82F6;
+                color: white;
+            }
+        """)
+
+        return help_label
+
+    def createAdvancedIntegerInput(
+            self,
+            text,
+            min_value,
+            max_value,
+            value,
+            function,
+            tooltip,
+            allow_none=False,
+    ):
+        row = QWidget()
+
+        layout = QHBoxLayout(row)
+
+        layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0,
+        )
+
+        layout.setSpacing(8)
+
+        label = QLabel(text)
+
+        spin = QSpinBox()
+
+        if allow_none:
+            spin.setRange(
+                0,
+                max_value,
+            )
+
+            spin.setSpecialValueText(
+                "Auto"
+            )
+
+            if value is None:
+                spin.setValue(0)
+            else:
+                spin.setValue(value)
+
+        else:
+            spin.setRange(
+                min_value,
+                max_value,
+            )
+
+            spin.setValue(value)
+
+        spin.setFixedWidth(90)
+
+        self.styleSpinBox(
+            spin
+        )
+
+        spin.valueChanged.connect(
+            function
+        )
+
+        help_label = self.createHelpLabel(
+            tooltip
+        )
+
+        layout.addWidget(
+            label,
+            1,
+        )
+
+        layout.addWidget(
+            help_label
+        )
+
+        layout.addWidget(
+            spin
+        )
+
+        row.spin_box = spin
+
+        return row
+
+    def createAdvancedFloatInput(
+            self,
+            text,
+            min_value,
+            max_value,
+            value,
+            function,
+            decimals,
+            tooltip,
+    ):
+        row = QWidget()
+
+        layout = QHBoxLayout(row)
+
+        layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0,
+        )
+
+        layout.setSpacing(8)
+
+        label = QLabel(text)
+
+        help_label = self.createHelpLabel(
+            tooltip
+        )
+
+        spin = QDoubleSpinBox()
+
+        spin.setRange(
+            min_value,
+            max_value,
+        )
+
+        spin.setDecimals(
+            decimals
+        )
+
+        spin.setSingleStep(
+            10 ** -decimals
+        )
+
+        spin.setValue(
+            value
+        )
+
+        spin.setFixedWidth(
+            90
+        )
+
+        self.styleSpinBox(
+            spin
+        )
+
+        spin.valueChanged.connect(
+            function
+        )
+
+        layout.addWidget(
+            label,
+            1,
+        )
+
+        layout.addWidget(
+            help_label
+        )
+
+        layout.addWidget(
+            spin
+        )
+
+        row.spin_box = spin
+
+        return row
+
+
 
     def createButton(self, text, function):
 
@@ -1315,7 +1784,86 @@ class Page1Vara(QWidget):
         )
 
         return button
+    def createPropertyInput(
+            self,
+            text,
+            min_value,
+            max_value,
+            value,
+            function,
+            decimals,
+    ):
 
+        row = QWidget()
+
+        layout = QHBoxLayout(row)
+
+        layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0,
+        )
+
+        layout.setSpacing(10)
+
+        label = QLabel(text)
+        label.setMinimumWidth(145)
+
+        spin_box = QDoubleSpinBox()
+
+        spin_box.setMinimum(min_value)
+        spin_box.setMaximum(max_value)
+
+        spin_box.setDecimals(decimals)
+
+        spin_box.setValue(value)
+
+        spin_box.setFixedWidth(130)
+
+        spin_box.valueChanged.connect(
+            function
+        )
+
+        spin_box.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: #111827;
+                color: white;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 5px 22px 5px 8px;
+            }
+
+            QDoubleSpinBox:focus {
+                border: 2px solid #3B82F6;
+                background-color: #0F172A;
+            }
+
+            QDoubleSpinBox::up-button,
+            QDoubleSpinBox::down-button {
+                background-color: #1E293B;
+                border: none;
+                width: 18px;
+            }
+
+            QDoubleSpinBox::up-button:hover,
+            QDoubleSpinBox::down-button:hover {
+                background-color: #3B82F6;
+            }
+        """)
+
+        layout.addWidget(
+            label,
+            1,
+        )
+
+        layout.addWidget(
+            spin_box
+        )
+
+        row.spin_box = spin_box
+
+        return row
 
     # ==========================================================
     # ESTRATOS
@@ -1328,7 +1876,7 @@ class Page1Vara(QWidget):
         texto = texto.strip()
 
         if texto == "":
-            return []
+            return [self.sz]
 
         texto = texto.replace(
             "[",
@@ -1459,6 +2007,10 @@ class Page1Vara(QWidget):
     # ALTERAÇÕES DA MALHA NORMAL
     # ==========================================================
 
+    def updatePotencial(self, value):
+        self.potencial = value
+
+
     def updateFixSize(
         self,
         checked,
@@ -1553,6 +2105,124 @@ class Page1Vara(QWidget):
     # Só alteram os valores.
     # ==========================================================
 
+    def atualizarDimensoesPelaFronteira(self):
+
+        if self.avancado_ativo:
+            return
+
+        diametro = 2 * self.raio_vara
+
+        tamanho_z=self.comprimento_vara+self.dist_fronteira
+
+        tamanho_xy = (
+                2 * self.dist_fronteira
+                + diametro
+        )
+
+        self.sx = tamanho_xy
+        self.sy = tamanho_xy
+        self.sz=tamanho_z
+
+
+        self.wsx.spin_box.blockSignals(True)
+        self.wsy.spin_box.blockSignals(True)
+        self.wsz.spin_box.blockSignals(True)
+        self.wsx.spin_box.setValue(self.sx)
+        self.wsy.spin_box.setValue(self.sy)
+        self.wsz.spin_box.setValue(self.sz)
+        self.wsx.spin_box.blockSignals(False)
+        self.wsy.spin_box.blockSignals(False)
+        self.wsz.spin_box.blockSignals(False)
+
+        self.gerarMalhaNormal()
+
+    def calcularCuboAutomaticoVara(self):
+
+        cubo_x = self.dx // 2
+        cubo_y = self.dy // 2
+
+        return cubo_x, cubo_y
+    def updateAvancado(
+            self,
+            checked,
+    ):
+
+        self.avancado_ativo = checked
+
+        self.avancado_container.setVisible(
+            checked
+        )
+
+        self.dist_fronteira_input.spin_box.setEnabled(
+            not checked
+        )
+
+        if checked:
+            self.dist_fronteira_input.spin_box.setToolTip(
+                "A distância automática à fronteira não está "
+                "disponível no modo Avançado."
+            )
+        else:
+            self.dist_fronteira_input.spin_box.setToolTip(
+                ""
+            )
+
+    def updateMaxDiv(
+            self,
+            value,
+    ):
+        if value == 0:
+            self.max_div = None
+        else:
+            self.max_div = value
+
+    def updateMinDiv(
+            self,
+            value,
+    ):
+        self.min_div = value
+
+    def updateCamadasDeformadas(
+            self,
+            value,
+    ):
+        if value == 0:
+            self.camadas_deformadas = None
+        else:
+            self.camadas_deformadas = value
+
+    def updateBallooning(
+            self,
+            value,
+    ):
+        self.ballooning = value
+
+    def updateDivisoesXY(
+            self,
+            value,
+    ):
+        if value == 0:
+            self.divisoes_xy = None
+        else:
+            self.divisoes_xy = value
+
+    def updateDivisoesContorno(
+            self,
+            value,
+    ):
+        if value == 0:
+            self.divisoes_contorno = None
+        else:
+            self.divisoes_contorno = value
+
+    def updateDivisoesZVara(
+            self,
+            value,
+    ):
+        if value == 0:
+            self.divisoes_z_vara = None
+        else:
+            self.divisoes_z_vara = value
 
 
     def updateVaraAtiva(
@@ -1590,14 +2260,15 @@ class Page1Vara(QWidget):
 
         self.vara_e_y = value
 
-
     def updateRaio(
-        self,
-        value,
+            self,
+            value,
     ):
 
         self.raio_vara = value
 
+        if not self.avancado_ativo:
+            self.atualizarDimensoesPelaFronteira()
 
     def updateComprimento(
         self,
@@ -1605,15 +2276,18 @@ class Page1Vara(QWidget):
     ):
 
         self.comprimento_vara = value
-
-
+        self.atualizarDimensoesPelaFronteira()
     def updateDistFronteira(
-        self,
-        value,
+            self,
+            value,
     ):
+
+        if self.avancado_ativo:
+            return
 
         self.dist_fronteira = value
 
+        self.atualizarDimensoesPelaFronteira()
 
     # ==========================================================
     # VISUALIZAÇÃO
@@ -1866,7 +2540,7 @@ class Page1Vara(QWidget):
         texto = texto.strip()
 
         if texto == "":
-            return []
+            return [self.sz]
 
         texto = texto.replace(
             "[",
@@ -1922,89 +2596,74 @@ class Page1Vara(QWidget):
             self.malha.getPointsList(),
         )
 
+        # ==========================================================
+        # CONDIÇÕES DE FRONTEIRA
+        # ==========================================================
+
         if self.vara_construida:
 
-            vetor = self.malha.gerarVetordaVara(
-                pontos
+            vetor = (
+                self.malha.gerarVetordaVara(
+                    pontos
+                )
             )
 
             tipo_malha = "1Vara"
 
         else:
 
-            vetor = self.malha.getVetorList()
+            vetor = (
+                self.malha.getVetorList()
+            )
 
             tipo_malha = "Normal"
 
-        altura_malha = self.malha.sz
+        # ==========================================================
+        # SOLO
+        # ==========================================================
 
-        minimos = np.min(
-            pontos[
-                tetraedros[:, 1:5],
-                2,
-            ],
-            axis=1,
+        estratos = self.lerEstratos()
+
+        if estratos is None:
+            return
+
+        resistividades = (
+            self.obterResistividadesEstratos()
         )
 
-        export_tetra = np.empty(
-            (
-                len(tetraedros),
-                5,
-            ),
-            dtype=int,
-        )
-
-        for i in range(
-            len(tetraedros)
-        ):
-
-            export_tetra[i, 0] = (
-                tetraedros[i][1]
-            )
-
-            export_tetra[i, 1] = (
-                tetraedros[i][2]
-            )
-
-            export_tetra[i, 2] = (
-                tetraedros[i][3]
-            )
-
-            export_tetra[i, 3] = (
-                tetraedros[i][4]
-            )
-
-            if altura_malha >= 4:
-
-                if (
-                    minimos[i]
-                    >= altura_malha - 4
-                ):
-
-                    export_tetra[i, 4] = 0
-
-                else:
-
-                    export_tetra[i, 4] = 1
-
-            else:
-
-                export_tetra[i, 4] = 0
+        # ==========================================================
+        # EXPORTADOR
+        # ==========================================================
 
         exportador = ex(
-            export_tetra,
+            tetraedros,
             pontos,
             vetor,
-            v=1000000,
+            estratos=estratos,
+            resistividades=resistividades,
+            rho=100,
+            v=self.potencial,
         )
+
+        # ==========================================================
+        # NOMES
+        # ==========================================================
 
         data_hora = datetime.now().strftime(
             "%Y-%m-%d_%H-%M-%S"
         )
 
         dados = (
-            f"Div({self.malha.dx},{self.malha.dy},{self.malha.dz})"
-            f"-Size({self.malha.sx},{self.malha.sy},{self.malha.sz})"
+            f"Div("
+            f"{self.malha.dx},"
+            f"{self.malha.dy},"
+            f"{self.malha.dz}"
+            f")"
+            f"-Size("
+            f"{self.malha.sx},"
+            f"{self.malha.sy},"
+            f"{self.malha.sz}"
+            f")"
             f"-{tipo_malha}"
             f"-{data_hora}"
         )
@@ -2021,50 +2680,35 @@ class Page1Vara(QWidget):
             f"vetor-{dados}"
         )
 
-        exportador.exportAll(
-            nome_elementos,
-            nome_pontos,
-            nome_vetor,
-        )
+        try:
 
-        detalhes_vara = ""
-
-        if (
-            self.vara_construida
-            and self.parametros_vara_construida
-            is not None
-        ):
-
-            parametros = (
-                self.parametros_vara_construida
+            exportador.exportAll(
+                nome_elementos,
+                nome_pontos,
+                nome_vetor,
             )
 
-            detalhes_vara = (
-                "\nVara:\n"
-                f"  Posição: "
-                f"({parametros['x']}, {parametros['y']})\n"
-                f"  Raio: {parametros['raio']}\n"
-                f"  Comprimento: {parametros['comprimento']}\n"
-                f"  Estratos: {parametros['estratos']}\n"
-                f"  Dist. fronteira: "
-                f"{parametros['dist_fronteira']}\n"
+        except Exception as erro:
+
+            QMessageBox.critical(
+                self,
+                "Erro de exportação",
+                str(erro),
             )
+
+            return
+
+        # ==========================================================
+        # MENSAGEM
+        # ==========================================================
 
         mensagem = (
             "Ficheiros exportados com sucesso!\n\n"
             f"Tipo de malha: {tipo_malha}\n"
-            f"Data e hora: {data_hora}\n"
-            f"Divisões: "
-            f"({self.malha.dx}, "
-            f"{self.malha.dy}, "
-            f"{self.malha.dz})\n"
-            f"Tamanho: "
-            f"({self.malha.sx}, "
-            f"{self.malha.sy}, "
-            f"{self.malha.sz})\n"
             f"Pontos: {len(pontos)}\n"
             f"Tetraedros: {len(tetraedros)}\n"
-            f"{detalhes_vara}\n"
+            f"Estratos: {estratos}\n"
+            f"Resistividades: {resistividades}\n\n"
             "Ficheiros:\n"
             f"{nome_elementos}.txt\n"
             f"{nome_pontos}.txt\n"
@@ -2076,7 +2720,6 @@ class Page1Vara(QWidget):
             "Exportação concluída",
             mensagem,
         )
-
 
     # ==========================================================
     # CÂMARA

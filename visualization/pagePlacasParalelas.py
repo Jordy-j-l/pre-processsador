@@ -40,6 +40,8 @@ class PagePlacasParalelas(QWidget):
         self.sy = self.dy
         self.sz = self.dz
         self.opacity=0.6
+        self.resistividade = 1.0
+        self.potencial = 100.0
         self.setup()
         self.updateMalha(self.sx, self.sy, self.sz)
         self.updateViewr()
@@ -121,6 +123,11 @@ class PagePlacasParalelas(QWidget):
 
         section_size = QLabel("Dimensões Físicas")
         section_size.setObjectName("sectionTitle")
+        propriedades_setup = QLabel("Setup Propriedades")
+        propriedades_setup.setObjectName("sectionTitle")
+
+        view_setup = QLabel("View Setup")
+        view_setup.setObjectName("sectionTitle")
         view_setup = QLabel("View Setup")
         view_setup.setObjectName("sectionTitle")
         #Divisões da Malha
@@ -164,7 +171,50 @@ class PagePlacasParalelas(QWidget):
         scroll_layout.addWidget(wsz)
 
         scroll_layout.addSpacing(10)
-        #viewr_setup
+        # ======================================================
+        # PROPRIEDADES
+        # ======================================================
+
+        scroll_layout.addSpacing(10)
+
+        scroll_layout.addWidget(
+            propriedades_setup
+        )
+
+        self.resistividade_input = self.createPropertyInput(
+            "Resistividade ρ",
+            0.000001,
+            1000000000.0,
+            self.resistividade,
+            self.updateResistividade,
+            3,
+        )
+
+        scroll_layout.addWidget(
+            self.resistividade_input
+        )
+
+        self.potencial_input = self.createPropertyInput(
+            "Potencial V",
+            0.0,
+            1000000000.0,
+            self.potencial,
+            self.updatePotencial,
+            2,
+        )
+
+        scroll_layout.addWidget(
+            self.potencial_input
+        )
+
+        scroll_layout.addSpacing(10)
+
+        # ======================================================
+        # VIEW SETUP
+        # ======================================================
+
+        scroll_layout.addWidget(view_setup)
+
 
         scroll_layout.addWidget(view_setup)
         scroll_layout.addWidget(self.createSpinBox("Opacidade", 0.1,1.0,self.opacity, self.updateOpacity))
@@ -541,11 +591,92 @@ class PagePlacasParalelas(QWidget):
 
         return row
 
+    def createPropertyInput(
+            self,
+            text,
+            min_value,
+            max_value,
+            value,
+            function,
+            decimals,
+    ):
 
+        row = QWidget()
 
+        layout = QHBoxLayout(row)
 
+        layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0,
+        )
 
+        layout.setSpacing(10)
 
+        label = QLabel(text)
+        label.setMinimumWidth(145)
+
+        spin_box = QDoubleSpinBox()
+
+        spin_box.setMinimum(min_value)
+        spin_box.setMaximum(max_value)
+
+        spin_box.setDecimals(decimals)
+
+        spin_box.setValue(value)
+
+        spin_box.setFixedWidth(130)
+
+        spin_box.valueChanged.connect(
+            function
+        )
+
+        spin_box.setStyleSheet("""
+            QDoubleSpinBox {
+                background-color: #111827;
+                color: white;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 5px 22px 5px 8px;
+            }
+
+            QDoubleSpinBox:focus {
+                border: 2px solid #3B82F6;
+                background-color: #0F172A;
+            }
+
+            QDoubleSpinBox::up-button,
+            QDoubleSpinBox::down-button {
+                background-color: #1E293B;
+                border: none;
+                width: 18px;
+            }
+
+            QDoubleSpinBox::up-button:hover,
+            QDoubleSpinBox::down-button:hover {
+                background-color: #3B82F6;
+            }
+        """)
+
+        layout.addWidget(
+            label,
+            1,
+        )
+
+        layout.addWidget(
+            spin_box
+        )
+
+        row.spin_box = spin_box
+
+        return row
+
+    def updateResistividade(self, value):
+        self.resistividade = value
+
+    def updatePotencial(self, value):
+        self.potencial = value
 
     def updateFixSize(self, checked, widget1, widget2, widget3):
         if checked:
@@ -632,18 +763,40 @@ class PagePlacasParalelas(QWidget):
         Viewer.tetrahedron(self.plotter, self.malha.getTetraedrosList(), self.malha.getPointsList(),"Blue",opacity=self.opacity)
 
         self.plotter.render()
+
     def export(self):
+
         tetraedros = self.malha.getTetraedrosList()
         pontos = self.malha.getPointsList()
         vetor = self.malha.getVetorList()
-        exp=ex(tetraedros, pontos, vetor)
 
-        data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dados = f"Div({self.dx},{self.dy},{self.dz})-Size({self.sx},{self.sy},{self.sz})-{data_hora}"
-        name_e=f"elementos-{dados}"
-        name_p=f"pontos-{dados}"
-        name_v=f"vetor-{dados}"
-        exp.exportAll(name_e,name_p,name_v)
+        exportador = ex(
+            tetraedros,
+            pontos,
+            vetor,
+            rho=self.resistividade,
+            v=self.potencial,
+        )
+
+        data_hora = datetime.now().strftime(
+            "%Y-%m-%d_%H-%M-%S"
+        )
+
+        dados = (
+            f"Div({self.dx},{self.dy},{self.dz})"
+            f"-Size({self.sx},{self.sy},{self.sz})"
+            f"-{data_hora}"
+        )
+
+        nome_elementos = f"elementos-{dados}"
+        nome_pontos = f"pontos-{dados}"
+        nome_vetor = f"vetor-{dados}"
+
+        exportador.exportAll(
+            nome_elementos,
+            nome_pontos,
+            nome_vetor,
+        )
 
         mensagem = (
             "Ficheiros exportados com sucesso!\n\n"
@@ -653,11 +806,20 @@ class PagePlacasParalelas(QWidget):
             f"Tamanho: ({self.sx}, {self.sy}, {self.sz})\n"
             f"Pontos: {len(pontos)}\n"
             f"Tetraedros: {len(tetraedros)}\n"
+            f"Resistividade: {self.resistividade} Ω·m\n"
+            f"Potencial: {self.potencial} V\n"
             f"Vetor: {vetor.tolist()}\n\n"
             "Ficheiros:\n"
-            f"{name_e}.txt\n{name_p}.txt\n{name_v}.txt"
+            f"{nome_elementos}.txt\n"
+            f"{nome_pontos}.txt\n"
+            f"{nome_vetor}.txt"
         )
-        QMessageBox.information(self, "Exportação concluída", mensagem)
+
+        QMessageBox.information(
+            self,
+            "Exportação concluída",
+            mensagem,
+        )
 
 
     def updateViewXY(self):
