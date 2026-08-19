@@ -1127,26 +1127,26 @@ class Malha:
             return False
         return (cubo_x, cubo_y) == cubo_deformado
 
+    def isFronteiraSuperior(self, i, pontos):
+        return np.isclose(pontos[i][2], self.sz)
 
+    def isFronteiraInferior(self, i, pontos):
+        return np.isclose(pontos[i][2], 0.0)
 
-    def isFronteiraSuperior(self,i,pontos):
-        """Indica se o ponto i pertence ao topo. Args: i: indice. Returns: bool."""
-        if  pontos[i][2] == self.sz:
-            return True
-        return False
-    def isFronteiraInferior(self,i,pontos):
-        """Indica se o ponto i pertence a base. Args: i: indice. Returns: bool."""
-        if  pontos[i][2] == 0:
-            return True
-        return False
+    def isFronteiratLateral(self, i, pontos):
 
-    def isFronteiratLateral(self,i,pontos):
-        """Indica se o ponto i pertence a uma lateral. Args: i: indice. Returns: bool."""
-        if ( pontos[i][2] != self.sz and  pontos[i][2] != 0) and (
-                ( pontos[i][1] == self.sy or  pontos[i][1] == 0) or (
-                 pontos[i][0] == self.sx or  pontos[i][0] == 0)):
-            return True
-        return False
+        x, y, z = pontos[i]
+
+        return (
+                not np.isclose(z, self.sz)
+                and not np.isclose(z, 0.0)
+                and (
+                        np.isclose(x, 0.0)
+                        or np.isclose(x, self.sx)
+                        or np.isclose(y, 0.0)
+                        or np.isclose(y, self.sy)
+                )
+        )
 
     def isPontoLivre(self,i,pontos):
         """Indica se o ponto i nao pertence a fronteira. Args: i: indice. Returns: bool."""

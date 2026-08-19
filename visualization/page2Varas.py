@@ -125,32 +125,24 @@ class Page2Varas(Page1Vara):
             )
         )
 
+        # A distância entre as varas é um resultado da geometria.
+        # O utilizador pode consultar o valor, mas não alterá-lo.
+        self.distancia_varas_input.spin_box.setReadOnly(True)
+
         self.distancia_varas_input.setToolTip(
             "Distância livre entre as superfícies das duas varas. "
-            "No modo automático é utilizada para calcular "
-            "as dimensões do domínio e a posição das varas."
+            "Este valor é calculado automaticamente a partir das "
+            "divisões da malha, dos raios e da distância à fronteira."
         )
 
-        parent = (
-            self.dist_fronteira_input
-            .parentWidget()
-        )
-
+        parent = self.dist_fronteira_input.parentWidget()
         layout = parent.layout()
-
-        indice = layout.indexOf(
-            self.dist_fronteira_input
-        )
+        indice = layout.indexOf(self.dist_fronteira_input)
 
         layout.insertWidget(
             indice + 1,
             self.distancia_varas_input,
         )
-
-
-    # ==========================================================
-    # SETUP VARA 2
-    # ==========================================================
 
     def adicionarSetupVara2(self):
 
@@ -619,86 +611,65 @@ class Page2Varas(Page1Vara):
 
     def atualizarEstadoAutomatico(self):
 
-        if not hasattr(
-            self,
-            "distancia_varas_input",
-        ):
+        if not hasattr(self, "distancia_varas_input"):
             return
 
-        avancado = (
-            self.modoAvancadoAtivo()
-        )
+        avancado = self.modoAvancadoAtivo()
 
-        # Só ficam bloqueadas no modo avançado
         self.dist_fronteira_input.spin_box.setEnabled(
             not avancado
         )
 
-        self.distancia_varas_input.spin_box.setEnabled(
-            not avancado
-        )
+        # É sempre apenas informativa.
+        self.distancia_varas_input.spin_box.setEnabled(True)
+        self.distancia_varas_input.spin_box.setReadOnly(True)
 
-        # As dimensões físicas continuam editáveis
-        self.wsx.spin_box.setEnabled(
-            True
-        )
+        self.wsx.spin_box.setEnabled(True)
+        self.wsy.spin_box.setEnabled(True)
+        self.wsz.spin_box.setEnabled(True)
 
-        self.wsy.spin_box.setEnabled(
-            True
-        )
-
-        self.wsz.spin_box.setEnabled(
-            True
-        )
-
-        self.fix_size.setEnabled(
-            True
-        )
-
-
-    # ==========================================================
-    # GEOMETRIA AUTOMÁTICA
-    # ==========================================================
+        self.fix_size.setEnabled(True)
 
     def atualizarGeometriaAutomatica(
         self,
         gerar_malha=True,
+        mostrar_erro=True,
     ):
 
         if not self.geometriaAutomaticaAtiva():
-            return
+            return True
 
-        # Apenas Vara 1
-        if (
-            self.vara_ativa
-            and not self.vara_b_ativa
-        ):
+        try:
 
-            self.calcularGeometriaVara1()
+            if self.vara_ativa and not self.vara_b_ativa:
+                self.calcularGeometriaVara1()
 
-        # Apenas Vara 2
-        elif (
-            self.vara_b_ativa
-            and not self.vara_ativa
-        ):
+            elif self.vara_b_ativa and not self.vara_ativa:
+                self.calcularGeometriaVara2()
 
-            self.calcularGeometriaVara2()
+            else:
+                self.calcularGeometriaDuasVaras()
 
-        # Duas varas
-        else:
+            self.atualizarInputsPosicao()
 
-            self.calcularGeometriaDuasVaras()
+        except ValueError as erro:
 
-        self.atualizarInputsPosicao()
+            if mostrar_erro:
+                QMessageBox.warning(
+                    self,
+                    "Configuração das varas",
+                    str(erro),
+                )
+
+            if gerar_malha:
+                self.gerarMalhaNormal()
+
+            return False
 
         if gerar_malha:
-
             self.gerarMalhaNormal()
 
-
-    # ==========================================================
-    # GEOMETRIA DE UMA VARA
-    # ==========================================================
+        return True
 
     def calcularGeometriaVara1(self):
 
@@ -834,123 +805,112 @@ class Page2Varas(Page1Vara):
 
     def calcularCubosAutomaticosDuasVaras(
         self,
-        tamanho,
         divisoes,
     ):
 
         if divisoes < 2:
-
             raise ValueError(
                 "São necessárias pelo menos 2 divisões "
                 "no eixo onde serão colocadas as duas varas."
             )
 
-        L = self.dist_fronteira
-        D = self.distancia_varas
+        meio = divisoes // 2
 
+        # Par: usa os dois cubos centrais.
+        # 0 | 1 | 2 | 3
+        #     A   B
+        if divisoes % 2 == 0:
+            cubo_a = meio - 1
+            cubo_b = meio
+
+        # Ímpar: deixa o cubo central entre as duas varas.
+        # 0 | 1 | 2 | 3 | 4
+        #     A       B
+        else:
+            cubo_a = meio - 1
+            cubo_b = meio + 1
+
+        return cubo_a, cubo_b
+
+    def calcularTamanhoEixoDasVaras(
+        self,
+        divisoes,
+        cubo_a,
+        cubo_b,
+    ):
+
+        L = self.dist_fronteira
         r_a = self.raio_vara
         r_b = self.raio_vara_b
 
-        melhor_cubo_a = None
-        melhor_cubo_b = None
+        # Centro da Vara 1 = (cubo_a + 0.5) * tamanho_cubo.
+        # Para garantir centro - raio >= L:
+        fator_esquerda = cubo_a + 0.5
 
-        menor_erro = float(
-            "inf"
+        # Distância da Vara 2 à fronteira oposta.
+        fator_direita = divisoes - cubo_b - 0.5
+
+        tamanho_cubo_esquerda = (
+            (L + r_a) / fator_esquerda
         )
 
-        # Testa todos os pares de cubos possíveis
-        for cubo_a in range(
-            divisoes - 1
-        ):
+        tamanho_cubo_direita = (
+            (L + r_b) / fator_direita
+        )
 
-            centro_a = (
-                self.centroDoCubo(
-                    cubo_a,
-                    tamanho,
-                    divisoes,
-                )
+        # Garante também que cada círculo cabe no cubo onde
+        # será criada a região deformada.
+        tamanho_cubo_vara = (
+            2 * max(r_a, r_b) + 0.00002
+        )
+
+        tamanho_cubo = max(
+            tamanho_cubo_esquerda,
+            tamanho_cubo_direita,
+            tamanho_cubo_vara,
+        )
+
+        return tamanho_cubo * divisoes
+
+    def calcularTamanhoEixoPerpendicular(
+        self,
+        divisoes,
+        cubo,
+    ):
+
+        if divisoes < 1:
+            raise ValueError(
+                "O eixo perpendicular deve ter pelo menos 1 divisão."
             )
 
-            for cubo_b in range(
-                cubo_a + 1,
-                divisoes,
-            ):
-
-                centro_b = (
-                    self.centroDoCubo(
-                        cubo_b,
-                        tamanho,
-                        divisoes,
-                    )
-                )
-
-                # Distância da superfície da Vara A
-                # à primeira fronteira
-                distancia_fronteira_a = (
-                    centro_a
-                    - r_a
-                )
-
-                # Distância livre entre as duas superfícies
-                distancia_entre_varas = (
-                    centro_b
-                    - centro_a
-                    - r_a
-                    - r_b
-                )
-
-                # Distância da superfície da Vara B
-                # à última fronteira
-                distancia_fronteira_b = (
-                    tamanho
-                    - centro_b
-                    - r_b
-                )
-
-                erro_fronteira_a = abs(
-                    distancia_fronteira_a
-                    - L
-                )
-
-                erro_varas = abs(
-                    distancia_entre_varas
-                    - D
-                )
-
-                erro_fronteira_b = abs(
-                    distancia_fronteira_b
-                    - L
-                )
-
-                erro_total = (
-                    erro_fronteira_a
-                    + erro_varas
-                    + erro_fronteira_b
-                )
-
-                if erro_total < menor_erro:
-
-                    menor_erro = (
-                        erro_total
-                    )
-
-                    melhor_cubo_a = (
-                        cubo_a
-                    )
-
-                    melhor_cubo_b = (
-                        cubo_b
-                    )
-
-        return (
-            melhor_cubo_a,
-            melhor_cubo_b,
+        L = self.dist_fronteira
+        raio = max(
+            self.raio_vara,
+            self.raio_vara_b,
         )
 
+        fator_inicio = cubo + 0.5
+        fator_fim = divisoes - cubo - 0.5
 
-    # ==========================================================
-    # POSIÇÕES AUTOMÁTICAS SEM ALTERAR SIZE
-    # ==========================================================
+        tamanho_cubo_inicio = (
+            (L + raio) / fator_inicio
+        )
+
+        tamanho_cubo_fim = (
+            (L + raio) / fator_fim
+        )
+
+        tamanho_cubo_vara = (
+            2 * raio + 0.00002
+        )
+
+        tamanho_cubo = max(
+            tamanho_cubo_inicio,
+            tamanho_cubo_fim,
+            tamanho_cubo_vara,
+        )
+
+        return tamanho_cubo * divisoes
 
     def atualizarPosicoesAutomaticas(self):
 
@@ -999,141 +959,125 @@ class Page2Varas(Page1Vara):
 
     def calcularPosicoesAutomaticasDuasVaras(self):
 
-        # Mais divisões em X
-        if self.dx >= self.dy:
+        eixo = self.obterEixoAutomaticoDuasVaras()
+        self.eixo_varas = eixo
 
-            (
-                self.vara_e_x,
-                self.vara_b_x,
-            ) = (
+        if eixo == "X":
+
+            self.vara_e_x, self.vara_b_x = (
                 self.calcularCubosAutomaticosDuasVaras(
-                    self.sx,
-                    self.dx,
+                    self.dx
                 )
             )
 
-            cubo_y = (
-                self.calcularCuboCentral(
-                    self.sy,
-                    self.dy,
-                )
+            cubo_y = self.calcularCuboCentral(
+                self.sy,
+                self.dy,
             )
 
-            self.vara_e_y = (
-                cubo_y
-            )
+            self.vara_e_y = cubo_y
+            self.vara_b_y = cubo_y
 
-            self.vara_b_y = (
-                cubo_y
-            )
-
-        # Mais divisões em Y
         else:
 
-            (
-                self.vara_e_y,
-                self.vara_b_y,
-            ) = (
+            self.vara_e_y, self.vara_b_y = (
                 self.calcularCubosAutomaticosDuasVaras(
-                    self.sy,
-                    self.dy,
+                    self.dy
                 )
             )
 
-            cubo_x = (
-                self.calcularCuboCentral(
-                    self.sx,
-                    self.dx,
-                )
+            cubo_x = self.calcularCuboCentral(
+                self.sx,
+                self.dx,
             )
 
-            self.vara_e_x = (
-                cubo_x
-            )
-
-            self.vara_b_x = (
-                cubo_x
-            )
-
-
-    # ==========================================================
-    # GEOMETRIA DE DUAS VARAS
-    # ==========================================================
+            self.vara_e_x = cubo_x
+            self.vara_b_x = cubo_x
 
     def calcularGeometriaDuasVaras(self):
 
         L = self.dist_fronteira
-        D = self.distancia_varas
 
-        r_a = self.raio_vara
-        r_b = self.raio_vara_b
+        eixo = self.obterEixoAutomaticoDuasVaras()
+        self.eixo_varas = eixo
 
-        comprimento_a = (
-            self.comprimento_vara
-        )
+        if eixo == "X":
 
-        comprimento_b = (
-            self.comprimento_vara_b
-        )
-
-        # Dimensão do eixo onde estão as duas varas
-        tamanho_principal = (
-            2 * r_a
-            + 2 * r_b
-            + D
-            + 2 * L
-        )
-
-        # Dimensão perpendicular
-        tamanho_secundario = (
-            2 * max(
-                r_a,
-                r_b,
+            cubo_a, cubo_b = (
+                self.calcularCubosAutomaticosDuasVaras(
+                    self.dx
+                )
             )
-            + 2 * L
-        )
 
-        # Z usa o maior comprimento
+            cubo_perpendicular = self.calcularCuboCentral(
+                self.sy,
+                self.dy,
+            )
+
+            tamanho_x = self.calcularTamanhoEixoDasVaras(
+                self.dx,
+                cubo_a,
+                cubo_b,
+            )
+
+            tamanho_y = self.calcularTamanhoEixoPerpendicular(
+                self.dy,
+                cubo_perpendicular,
+            )
+
+            self.vara_e_x = cubo_a
+            self.vara_b_x = cubo_b
+
+            self.vara_e_y = cubo_perpendicular
+            self.vara_b_y = cubo_perpendicular
+
+        else:
+
+            cubo_a, cubo_b = (
+                self.calcularCubosAutomaticosDuasVaras(
+                    self.dy
+                )
+            )
+
+            cubo_perpendicular = self.calcularCuboCentral(
+                self.sx,
+                self.dx,
+            )
+
+            tamanho_y = self.calcularTamanhoEixoDasVaras(
+                self.dy,
+                cubo_a,
+                cubo_b,
+            )
+
+            tamanho_x = self.calcularTamanhoEixoPerpendicular(
+                self.dx,
+                cubo_perpendicular,
+            )
+
+            self.vara_e_y = cubo_a
+            self.vara_b_y = cubo_b
+
+            self.vara_e_x = cubo_perpendicular
+            self.vara_b_x = cubo_perpendicular
+
+        # A vara mais curta também fica a uma distância >= L
+        # da fronteira inferior, porque o domínio usa a maior vara.
         tamanho_z = (
             max(
-                comprimento_a,
-                comprimento_b,
+                self.comprimento_vara,
+                self.comprimento_vara_b,
             )
             + L
         )
 
-        # ======================================================
-        # VARAS DISTRIBUÍDAS EM X
-        # ======================================================
+        self.definirDimensoesFisicas(
+            tamanho_x,
+            tamanho_y,
+            tamanho_z,
+        )
 
-        if self.dx >= self.dy:
-
-            self.definirDimensoesFisicas(
-                tamanho_principal,
-                tamanho_secundario,
-                tamanho_z,
-            )
-
-        # ======================================================
-        # VARAS DISTRIBUÍDAS EM Y
-        # ======================================================
-
-        else:
-
-            self.definirDimensoesFisicas(
-                tamanho_secundario,
-                tamanho_principal,
-                tamanho_z,
-            )
-
-        # Depois de conhecer os tamanhos,
-        # escolhe os melhores cubos
-        self.calcularPosicoesAutomaticasDuasVaras()
-
-
-    # ==========================================================
-    # DEFINIR DIMENSÕES
-    # ==========================================================
+        self.atualizarDistanciaEntreVaras()
 
     def definirDimensoesFisicas(
         self,
@@ -1189,6 +1133,64 @@ class Page2Varas(Page1Vara):
     # ==========================================================
     # ATUALIZAR INPUTS DA POSIÇÃO
     # ==========================================================
+
+    def atualizarDistanciaEntreVaras(self):
+
+        if not self.vara_ativa or not self.vara_b_ativa:
+            self.distancia_varas = 0.0
+
+            if hasattr(self, "distancia_varas_input"):
+                spin = self.distancia_varas_input.spin_box
+                spin.blockSignals(True)
+                spin.setValue(0.0)
+                spin.blockSignals(False)
+
+            return
+
+        centro_a_x = self.centroDoCubo(
+            self.vara_e_x,
+            self.sx,
+            self.dx,
+        )
+
+        centro_a_y = self.centroDoCubo(
+            self.vara_e_y,
+            self.sy,
+            self.dy,
+        )
+
+        centro_b_x = self.centroDoCubo(
+            self.vara_b_x,
+            self.sx,
+            self.dx,
+        )
+
+        centro_b_y = self.centroDoCubo(
+            self.vara_b_y,
+            self.sy,
+            self.dy,
+        )
+
+        delta_x = centro_b_x - centro_a_x
+        delta_y = centro_b_y - centro_a_y
+
+        distancia_centros = (
+            delta_x ** 2 + delta_y ** 2
+        ) ** 0.5
+
+        self.distancia_varas = max(
+            0.0,
+            distancia_centros
+            - self.raio_vara
+            - self.raio_vara_b,
+        )
+
+        if hasattr(self, "distancia_varas_input"):
+            spin = self.distancia_varas_input.spin_box
+
+            spin.blockSignals(True)
+            spin.setValue(self.distancia_varas)
+            spin.blockSignals(False)
 
     def atualizarInputsPosicao(self):
 
@@ -1248,6 +1250,17 @@ class Page2Varas(Page1Vara):
                 False
             )
 
+    def criarObjetoMalha(self):
+
+        # Executa todo o fluxo normal da Page1Vara
+        super().criarObjetoMalha()
+
+        # Faz a Vara 2 passar pelo mesmo tipo de atualização
+        if hasattr(
+                self,
+                "comprimento_b_input",
+        ):
+            self.ajustarParametrosVaraB()
 
     # ==========================================================
     # DISTÂNCIAS REAIS OBTIDAS
@@ -1255,92 +1268,60 @@ class Page2Varas(Page1Vara):
 
     def obterDistanciasReaisDuasVaras(self):
 
-        if (
-            not self.vara_ativa
-            or not self.vara_b_ativa
-        ):
-
+        if not self.vara_ativa or not self.vara_b_ativa:
             return None
 
-        # ======================================================
-        # VARAS EM X
-        # ======================================================
+        centro_a_x = self.centroDoCubo(
+            self.vara_e_x,
+            self.sx,
+            self.dx,
+        )
 
-        if self.dx >= self.dy:
+        centro_a_y = self.centroDoCubo(
+            self.vara_e_y,
+            self.sy,
+            self.dy,
+        )
 
-            centro_a = (
-                self.centroDoCubo(
-                    self.vara_e_x,
-                    self.sx,
-                    self.dx,
-                )
-            )
+        centro_b_x = self.centroDoCubo(
+            self.vara_b_x,
+            self.sx,
+            self.dx,
+        )
 
-            centro_b = (
-                self.centroDoCubo(
-                    self.vara_b_x,
-                    self.sx,
-                    self.dx,
-                )
-            )
+        centro_b_y = self.centroDoCubo(
+            self.vara_b_y,
+            self.sy,
+            self.dy,
+        )
 
-            fronteira_a = (
-                centro_a
-                - self.raio_vara
-            )
+        r_a = self.raio_vara
+        r_b = self.raio_vara_b
 
-            entre_varas = (
-                centro_b
-                - centro_a
-                - self.raio_vara
-                - self.raio_vara_b
-            )
+        # Menor distância lateral entre cada superfície cilíndrica
+        # e qualquer uma das quatro fronteiras laterais do domínio.
+        fronteira_a = min(
+            centro_a_x - r_a,
+            self.sx - centro_a_x - r_a,
+            centro_a_y - r_a,
+            self.sy - centro_a_y - r_a,
+        )
 
-            fronteira_b = (
-                self.sx
-                - centro_b
-                - self.raio_vara_b
-            )
+        fronteira_b = min(
+            centro_b_x - r_b,
+            self.sx - centro_b_x - r_b,
+            centro_b_y - r_b,
+            self.sy - centro_b_y - r_b,
+        )
 
-        # ======================================================
-        # VARAS EM Y
-        # ======================================================
+        distancia_centros = (
+            (centro_b_x - centro_a_x) ** 2
+            + (centro_b_y - centro_a_y) ** 2
+        ) ** 0.5
 
-        else:
-
-            centro_a = (
-                self.centroDoCubo(
-                    self.vara_e_y,
-                    self.sy,
-                    self.dy,
-                )
-            )
-
-            centro_b = (
-                self.centroDoCubo(
-                    self.vara_b_y,
-                    self.sy,
-                    self.dy,
-                )
-            )
-
-            fronteira_a = (
-                centro_a
-                - self.raio_vara
-            )
-
-            entre_varas = (
-                centro_b
-                - centro_a
-                - self.raio_vara
-                - self.raio_vara_b
-            )
-
-            fronteira_b = (
-                self.sy
-                - centro_b
-                - self.raio_vara_b
-            )
+        entre_varas = (
+            distancia_centros - r_a - r_b
+        )
 
         return (
             fronteira_a,
@@ -1348,103 +1329,90 @@ class Page2Varas(Page1Vara):
             fronteira_b,
         )
 
-
-    # ==========================================================
-    # AVISO DE POSICIONAMENTO
-    # ==========================================================
-
     def avisarPosicionamentoAutomatico(self):
 
         if not self.geometriaAutomaticaAtiva():
             return
 
-        if (
-            not self.vara_ativa
-            or not self.vara_b_ativa
-        ):
-
+        if not self.vara_ativa or not self.vara_b_ativa:
             self.avisarVaraNaoCentrada()
             return
 
-        distancias = (
-            self.obterDistanciasReaisDuasVaras()
-        )
+        distancias = self.obterDistanciasReaisDuasVaras()
 
         if distancias is None:
             return
 
-        (
-            fronteira_a,
-            entre_varas,
-            fronteira_b,
-        ) = distancias
+        fronteira_a, entre_varas, fronteira_b = distancias
 
-        erro_a = abs(
-            fronteira_a
-            - self.dist_fronteira
-        )
+        tolerancia = 1e-6
 
-        erro_varas = abs(
-            entre_varas
-            - self.distancia_varas
-        )
-
-        erro_b = abs(
-            fronteira_b
-            - self.dist_fronteira
-        )
-
-        erro_maximo = max(
-            erro_a,
-            erro_varas,
-            erro_b,
-        )
-
-        if erro_maximo <= 0.000001:
+        # No modo automático a fronteira configurada é um mínimo.
+        # Distâncias superiores são válidas.
+        if (
+            fronteira_a + tolerancia >= self.dist_fronteira
+            and fronteira_b + tolerancia >= self.dist_fronteira
+        ):
             return
 
-        eixo = (
-            "X"
-            if self.dx >= self.dy
-            else "Y"
+        eixo = getattr(
+            self,
+            "eixo_varas",
+            "X",
         )
 
         QMessageBox.warning(
             self,
-            "Posicionamento aproximado das varas",
+            "Distância à fronteira",
             (
-                "A discretização atual não permite obter exatamente "
-                "todas as distâncias configuradas.\n\n"
-
+                "A discretização atual não conseguiu garantir "
+                "a distância mínima configurada para as duas varas.\n\n"
                 f"Eixo utilizado: {eixo}\n\n"
-
-                f"Distância à fronteira pretendida: "
+                f"Distância mínima pretendida: "
                 f"{self.dist_fronteira:.3f} m\n"
-
-                f"Distância Vara 1 → fronteira: "
+                f"Menor distância da Vara 1 à fronteira: "
                 f"{fronteira_a:.3f} m\n"
-
-                f"Distância entre varas pretendida: "
-                f"{self.distancia_varas:.3f} m\n"
-
-                f"Distância entre varas obtida: "
-                f"{entre_varas:.3f} m\n"
-
-                f"Distância Vara 2 → fronteira: "
-                f"{fronteira_b:.3f} m\n\n"
-
-                "Foi escolhido automaticamente o par de cubos "
-                "que produz o menor erro total.\n\n"
-
-                "Verifique visualmente a posição das varas "
-                "antes de exportar."
+                f"Menor distância da Vara 2 à fronteira: "
+                f"{fronteira_b:.3f} m\n"
+                f"Distância calculada entre as varas: "
+                f"{entre_varas:.3f} m"
             ),
         )
 
+    def obterEixoAutomaticoDuasVaras(self):
 
-    # ==========================================================
-    # VARA 1
-    # ==========================================================
+        x_valido = self.dx >= 2
+        y_valido = self.dy >= 2
+
+        if not x_valido and not y_valido:
+            raise ValueError(
+                "Para colocar duas varas são necessárias "
+                "pelo menos 2 divisões em X ou em Y."
+            )
+
+        if x_valido and not y_valido:
+            return "X"
+
+        if y_valido and not x_valido:
+            return "Y"
+
+        x_impar = self.dx % 2 != 0
+        y_impar = self.dy % 2 != 0
+
+        # Se apenas um dos eixos é ímpar, ele tem prioridade,
+        # mesmo que o outro tenha mais divisões.
+        if x_impar and not y_impar:
+            return "X"
+
+        if y_impar and not x_impar:
+            return "Y"
+
+        # Se os dois têm a mesma paridade, usa o eixo com mais
+        # divisões. Em empate, X.
+        if self.dx >= self.dy:
+            return "X"
+
+        return "Y"
 
     def updateVaraAtiva(
         self,
@@ -1452,28 +1420,17 @@ class Page2Varas(Page1Vara):
     ):
 
         self.vara_ativa = checked
-
-        if checked:
-
-            self.vara_toggle.setText(
-                "ON"
-            )
-
-        else:
-
-            self.vara_toggle.setText(
-                "OFF"
-            )
-
-        self.vara_config.setVisible(
-            checked
+        self.vara_toggle.setText(
+            "ON" if checked else "OFF"
         )
 
+        self.vara_config.setVisible(checked)
         self.atualizarEstadoAutomatico()
 
-        # Ligar/desligar não altera os Size
-        self.gerarMalhaNormal()
-
+        if self.geometriaAutomaticaAtiva():
+            self.atualizarGeometriaAutomatica()
+        else:
+            self.gerarMalhaNormal()
 
     def updateRaio(
         self,
@@ -1483,9 +1440,9 @@ class Page2Varas(Page1Vara):
         self.raio_vara = value
 
         if self.geometriaAutomaticaAtiva():
-
             self.atualizarGeometriaAutomatica()
-
+        else:
+            self.atualizarDistanciaEntreVaras()
 
     def updateComprimento(
         self,
@@ -1503,34 +1460,40 @@ class Page2Varas(Page1Vara):
     # VARA 2
     # ==========================================================
 
+    def updateVaraX(
+        self,
+        value,
+    ):
+
+        self.vara_e_x = value
+        self.atualizarDistanciaEntreVaras()
+
+    def updateVaraY(
+        self,
+        value,
+    ):
+
+        self.vara_e_y = value
+        self.atualizarDistanciaEntreVaras()
+
     def updateVaraBAtiva(
         self,
         checked,
     ):
 
         self.vara_b_ativa = checked
-
-        if checked:
-
-            self.vara_b_toggle.setText(
-                "ON"
-            )
-
-        else:
-
-            self.vara_b_toggle.setText(
-                "OFF"
-            )
-
-        self.vara_b_config.setVisible(
-            checked
+        self.vara_b_toggle.setText(
+            "ON" if checked else "OFF"
         )
 
+        self.vara_b_config.setVisible(checked)
         self.atualizarEstadoAutomatico()
 
-        # Ligar/desligar não altera os Size
-        self.gerarMalhaNormal()
-
+        if self.geometriaAutomaticaAtiva():
+            self.atualizarGeometriaAutomatica()
+        else:
+            self.atualizarDistanciaEntreVaras()
+            self.gerarMalhaNormal()
 
     def updateVaraBX(
         self,
@@ -1538,7 +1501,7 @@ class Page2Varas(Page1Vara):
     ):
 
         self.vara_b_x = value
-
+        self.atualizarDistanciaEntreVaras()
 
     def updateVaraBY(
         self,
@@ -1546,7 +1509,7 @@ class Page2Varas(Page1Vara):
     ):
 
         self.vara_b_y = value
-
+        self.atualizarDistanciaEntreVaras()
 
     def updateRaioB(
         self,
@@ -1556,9 +1519,9 @@ class Page2Varas(Page1Vara):
         self.raio_vara_b = value
 
         if self.geometriaAutomaticaAtiva():
-
             self.atualizarGeometriaAutomatica()
-
+        else:
+            self.atualizarDistanciaEntreVaras()
 
     def updateComprimentoB(
         self,
@@ -1590,29 +1553,13 @@ class Page2Varas(Page1Vara):
 
             self.atualizarGeometriaAutomatica()
 
-
     def updateDistanciaVaras(
         self,
         value,
     ):
-
-        if self.modoAvancadoAtivo():
-            return
-
-        self.distancia_varas = value
-
-        if (
-            self.vara_ativa
-            and self.vara_b_ativa
-            and self.geometriaAutomaticaAtiva()
-        ):
-
-            self.atualizarGeometriaAutomatica()
-
-
-    # ==========================================================
-    # AVANÇADO VARA 1
-    # ==========================================================
+        # Campo apenas informativo. O valor é atualizado por
+        # atualizarDistanciaEntreVaras().
+        pass
 
     def updateAvancado(
         self,
@@ -1620,23 +1567,14 @@ class Page2Varas(Page1Vara):
     ):
 
         self.avancado_ativo = checked
-
-        self.avancado_container.setVisible(
-            checked
-        )
+        self.avancado_container.setVisible(checked)
 
         self.atualizarEstadoAutomatico()
 
-        if not checked:
-
-            self.atualizarPosicoesAutomaticas()
-
-        self.gerarMalhaNormal()
-
-
-    # ==========================================================
-    # AVANÇADO VARA 2
-    # ==========================================================
+        if self.geometriaAutomaticaAtiva():
+            self.atualizarGeometriaAutomatica()
+        else:
+            self.gerarMalhaNormal()
 
     def updateAvancadoB(
         self,
@@ -1644,19 +1582,14 @@ class Page2Varas(Page1Vara):
     ):
 
         self.avancado_b_ativo = checked
-
-        self.avancado_b_container.setVisible(
-            checked
-        )
+        self.avancado_b_container.setVisible(checked)
 
         self.atualizarEstadoAutomatico()
 
-        if not checked:
-
-            self.atualizarPosicoesAutomaticas()
-
-        self.gerarMalhaNormal()
-
+        if self.geometriaAutomaticaAtiva():
+            self.atualizarGeometriaAutomatica()
+        else:
+            self.gerarMalhaNormal()
 
     def updateMaxDivB(
         self,
@@ -1812,18 +1745,9 @@ class Page2Varas(Page1Vara):
 
     def buildVara(self):
 
-        if (
-            not self.vara_ativa
-            and not self.vara_b_ativa
-        ):
-
+        if not self.vara_ativa and not self.vara_b_ativa:
             self.gerarMalhaNormal()
-
             return
-
-        # ======================================================
-        # VALIDAÇÃO VARA 1
-        # ======================================================
 
         if (
             self.vara_ativa
@@ -1831,21 +1755,13 @@ class Page2Varas(Page1Vara):
             and self.max_div is not None
             and self.max_div < self.min_div
         ):
-
             QMessageBox.warning(
                 self,
                 "Configuração inválida",
-                (
-                    "Na Vara 1, Máx. divisões não pode "
-                    "ser inferior a Mín. divisões."
-                ),
+                "Na Vara 1, Máx. divisões não pode ser "
+                "inferior a Mín. divisões.",
             )
-
             return
-
-        # ======================================================
-        # VALIDAÇÃO VARA 2
-        # ======================================================
 
         if (
             self.vara_b_ativa
@@ -1853,105 +1769,63 @@ class Page2Varas(Page1Vara):
             and self.max_div_b is not None
             and self.max_div_b < self.min_div_b
         ):
-
             QMessageBox.warning(
                 self,
                 "Configuração inválida",
-                (
-                    "Na Vara 2, Máx. divisões não pode "
-                    "ser inferior a Mín. divisões."
-                ),
+                "Na Vara 2, Máx. divisões não pode ser "
+                "inferior a Mín. divisões.",
             )
-
             return
 
-        # ======================================================
-        # ESTRATOS
-        # ======================================================
+        # Antes do BUILD, recalcula a geometria e a distância
+        # resultante entre as varas. Assim o objeto Malha é criado
+        # já com os tamanhos físicos definitivos.
+        if self.geometriaAutomaticaAtiva():
+            if not self.atualizarGeometriaAutomatica(
+                gerar_malha=False,
+                mostrar_erro=True,
+            ):
+                return
 
-        estratos = (
-            self.lerEstratos()
-        )
+        if not self.geometriaAutomaticaAtiva():
+            self.atualizarDistanciaEntreVaras()
+
+        estratos = self.lerEstratos()
 
         if estratos is None:
             return
 
-        self.estratos = (
-            estratos
-        )
-
+        self.estratos = estratos
         self.resistividades_estratos = (
             self.obterResistividadesEstratos()
         )
 
-        # Cria a malha com os Size atualmente apresentados
         self.criarObjetoMalha()
-
-        self.ajustarParametrosVaraB()
-
-        # ======================================================
-        # CALCULA APENAS AS POSIÇÕES
-        # NÃO ALTERA OS SIZE NO BUILD
-        # ======================================================
-
-        if self.geometriaAutomaticaAtiva():
-
-            try:
-
-                self.atualizarPosicoesAutomaticas()
-
-            except Exception as erro:
-
-                QMessageBox.warning(
-                    self,
-                    "Posicionamento das varas",
-                    str(erro),
-                )
-
-                return
 
         try:
 
-            # Duas varas
-            if (
-                self.vara_ativa
-                and self.vara_b_ativa
-            ):
-
+            if self.vara_ativa and self.vara_b_ativa:
                 self.gerarDuasVaras()
 
-            # Apenas Vara 1
             elif self.vara_ativa:
-
                 self.gerarApenasVara1()
 
-            # Apenas Vara 2
             elif self.vara_b_ativa:
-
                 self.gerarApenasVara2()
 
         except Exception as erro:
-
             QMessageBox.critical(
                 self,
                 "Erro ao construir malha",
                 str(erro),
             )
-
             return
 
         self.vara_construida = True
 
         self.guardarParametrosDaConstrucao()
-
         self.updateViewer()
-
         self.avisarPosicionamentoAutomatico()
-
-
-    # ==========================================================
-    # GERAR APENAS VARA 1
-    # ==========================================================
 
     def gerarApenasVara1(self):
 
@@ -2283,56 +2157,31 @@ class Page2Varas(Page1Vara):
         self.dx = value
 
         if self.vara_e_x >= self.dx:
-
-            self.vara_e_x = (
-                self.dx - 1
-            )
+            self.vara_e_x = self.dx - 1
 
         self.vara_x_spin.spin_box.setMaximum(
             self.dx - 1
         )
-
         self.vara_x_spin.spin_box.setValue(
             self.vara_e_x
         )
 
-        if hasattr(
-            self,
-            "vara_b_x_input",
-        ):
+        if hasattr(self, "vara_b_x_input"):
 
             if self.vara_b_x >= self.dx:
-
-                self.vara_b_x = (
-                    self.dx - 1
-                )
+                self.vara_b_x = self.dx - 1
 
             self.vara_b_x_input.spin_box.setMaximum(
                 self.dx - 1
             )
-
             self.vara_b_x_input.spin_box.setValue(
                 self.vara_b_x
             )
 
         if self.geometriaAutomaticaAtiva():
-
-            try:
-
-                self.atualizarGeometriaAutomatica()
-
-            except ValueError:
-
-                self.gerarMalhaNormal()
-
+            self.atualizarGeometriaAutomatica()
         else:
-
             self.gerarMalhaNormal()
-
-
-    # ==========================================================
-    # DIV-Y
-    # ==========================================================
 
     def updateDy(
         self,
@@ -2342,56 +2191,31 @@ class Page2Varas(Page1Vara):
         self.dy = value
 
         if self.vara_e_y >= self.dy:
-
-            self.vara_e_y = (
-                self.dy - 1
-            )
+            self.vara_e_y = self.dy - 1
 
         self.vara_y_spin.spin_box.setMaximum(
             self.dy - 1
         )
-
         self.vara_y_spin.spin_box.setValue(
             self.vara_e_y
         )
 
-        if hasattr(
-            self,
-            "vara_b_y_input",
-        ):
+        if hasattr(self, "vara_b_y_input"):
 
             if self.vara_b_y >= self.dy:
-
-                self.vara_b_y = (
-                    self.dy - 1
-                )
+                self.vara_b_y = self.dy - 1
 
             self.vara_b_y_input.spin_box.setMaximum(
                 self.dy - 1
             )
-
             self.vara_b_y_input.spin_box.setValue(
                 self.vara_b_y
             )
 
         if self.geometriaAutomaticaAtiva():
-
-            try:
-
-                self.atualizarGeometriaAutomatica()
-
-            except ValueError:
-
-                self.gerarMalhaNormal()
-
+            self.atualizarGeometriaAutomatica()
         else:
-
             self.gerarMalhaNormal()
-
-
-    # ==========================================================
-    # DIV-Z
-    # ==========================================================
 
     def updateDz(
         self,
@@ -2415,27 +2239,20 @@ class Page2Varas(Page1Vara):
         self.sx = value
 
         if self.geometriaAutomaticaAtiva():
-
             try:
-
                 self.atualizarPosicoesAutomaticas()
+            except ValueError as erro:
+                QMessageBox.warning(
+                    self,
+                    "Configuração das varas",
+                    str(erro),
+                )
 
-            except ValueError:
-                pass
-
+        self.atualizarDistanciaEntreVaras()
         self.gerarMalhaNormal()
 
-        if hasattr(
-            self,
-            "raio_b_input",
-        ):
-
+        if hasattr(self, "raio_b_input"):
             self.ajustarParametrosVaraB()
-
-
-    # ==========================================================
-    # SIZE-Y
-    # ==========================================================
 
     def updateSy(
         self,
@@ -2445,27 +2262,20 @@ class Page2Varas(Page1Vara):
         self.sy = value
 
         if self.geometriaAutomaticaAtiva():
-
             try:
-
                 self.atualizarPosicoesAutomaticas()
+            except ValueError as erro:
+                QMessageBox.warning(
+                    self,
+                    "Configuração das varas",
+                    str(erro),
+                )
 
-            except ValueError:
-                pass
-
+        self.atualizarDistanciaEntreVaras()
         self.gerarMalhaNormal()
 
-        if hasattr(
-            self,
-            "raio_b_input",
-        ):
-
+        if hasattr(self, "raio_b_input"):
             self.ajustarParametrosVaraB()
-
-
-    # ==========================================================
-    # SIZE-Z
-    # ==========================================================
 
     def updateSz(
         self,

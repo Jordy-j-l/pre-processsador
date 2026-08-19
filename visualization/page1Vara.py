@@ -165,8 +165,14 @@ class Page1Vara(QWidget):
         self.resistividades_estratos = (
             self.obterResistividadesEstratos()
         )
-
         self.criarObjetoMalha()
+        if not self.avancado_ativo:
+            self.vara_e_x, self.vara_e_y = (
+                self.calcularCuboAutomaticoVara()
+            )
+
+            self.avisarVaraNaoCentrada()
+
 
         try:
 
@@ -228,12 +234,7 @@ class Page1Vara(QWidget):
             "estratos": self.estratos.copy(),
             "dist_fronteira": self.dist_fronteira,
         }
-        if not self.avancado_ativo:
-            self.vara_e_x, self.vara_e_y = (
-                self.calcularCuboAutomaticoVara()
-            )
 
-            self.avisarVaraNaoCentrada()
         self.updateViewer()
 
 
@@ -1919,6 +1920,12 @@ class Page1Vara(QWidget):
 
             estratos.append(valor)
 
+        if not any(
+                np.isclose(valor, self.sz)
+                for valor in estratos
+        ):
+            estratos.append(self.sz)
+
         return estratos
 
 
@@ -2534,27 +2541,14 @@ class Page1Vara(QWidget):
 
     def lerEstratosSemMensagem(self):
 
-        texto = self.estratos_input.line_edit.text()
-
-        texto = texto.strip()
+        texto = self.estratos_input.line_edit.text().strip()
 
         if texto == "":
             return [self.sz]
 
-        texto = texto.replace(
-            "[",
-            "",
-        )
-
-        texto = texto.replace(
-            "]",
-            "",
-        )
-
-        texto = texto.replace(
-            ";",
-            ",",
-        )
+        texto = texto.replace("[", "")
+        texto = texto.replace("]", "")
+        texto = texto.replace(";", ",")
 
         partes = texto.split(",")
 
@@ -2574,6 +2568,12 @@ class Page1Vara(QWidget):
                 return None
 
             estratos.append(valor)
+
+        if not any(
+                np.isclose(valor, self.sz)
+                for valor in estratos
+        ):
+            estratos.append(self.sz)
 
         return estratos
 
