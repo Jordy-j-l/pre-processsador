@@ -189,7 +189,6 @@ class Page1Vara(QWidget):
                     automatico=not self.avancado_ativo,
 
                     estrato=self.estratos,
-                    distVara=self.dist_fronteira,
                 )
             )
 

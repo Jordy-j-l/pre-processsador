@@ -729,7 +729,7 @@ class Malha:
             self,
             cubo_varaA_X, cubo_varaA_Y, rA, cA, max_divA, min_divA, camadasA, ballooningA,
             cubo_varaB_X, cubo_varaB_Y, rB, cB, max_divB, min_divB, camadasB, ballooningB,
-            *, automatico=False,estrato,distVara1=None,distVara2=None):
+            *, automatico=False,estrato):
         """Gera uma malha com duas varas de configuracoes diferentes."""
         origem = (0.0, 0.0, 0.0)
         tamanho_cubo_x = self.sx / self.dx
@@ -874,7 +874,7 @@ class Malha:
             max_div=None, min_div=1, camadas_deformadas=None, balloning=1.55,
             *, divisoes_xy=None, divisoes_contorno=None,
             divisoes_z_vara=None, automatico=False,
-            estrato=None,distVara=None):
+            estrato=None):
         """Gera uma malha refinada em torno de uma vara.
 
         Args: cubo_vara_X/Y: cubo da vara; r: raio; c: comprimento;
